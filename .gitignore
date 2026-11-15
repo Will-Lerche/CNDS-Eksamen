@@ -1,0 +1,17 @@
+# Afhængigheder
+node_modules/
+
+# Hemmeligheder og private nøgler
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logfiler
+logs/
+*.log
+
+# Systemfiler
+.DS_Store
+Thumbs.db
