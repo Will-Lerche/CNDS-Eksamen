@@ -2,7 +2,6 @@
 
 Fælles instruktioner til alle AI-værktøjer i dette repo (Claude, Gemini, ChatGPT). Læs hele filen, før du ændrer noget.
 
-> Status: udkast fra 15. november 2026, ikke vedtaget af gruppen.
 > Punkter mærket **ÅBENT** er ikke besluttet. Gæt ikke på dem. Spørg personen, du arbejder for.
 
 ## Projektet
@@ -63,6 +62,7 @@ Er en opgave i modstrid med `specs.md`, så stop og spørg. Ret ikke i `specs.md
 - `[ ]` skal laves, `[~]` i gang, `[x]` færdig
 - Færdig betyder: kørt og testet af et menneske og merget til `main`. Sæt ikke selv `[x]`, før personen har bekræftet det
 - Ret kun de linjer, opgaven vedrører. Omformatér ikke resten af filen
+- Skriv ikke, hvem der har valgt eller foreslået noget, eller hvornår. Skriv kun, hvad der skal gøres. Historikken ligger i git
 - **ÅBENT 6:** Initialer og dato på linjer, der er i gang, fx `[~] Kontrol af webhook-signatur (WL, 17/11)`
 
 ## docs.md

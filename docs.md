@@ -3,7 +3,7 @@
 Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på gruppens anmodning og kontrolleret af gruppen.
 
 > Tekst herfra må ikke kopieres ind i den skriftlige rapport. Rapporten skriver gruppen selv.
-> Status: skabelon fra 15. november 2026. Der er ingen kode endnu, så afsnittene er tomme.
+> Afsnittene udfyldes, når der er kode.
 
 ## Sådan bruges filen
 - Opdateres i samme branch som den kode, der ændres

@@ -7,9 +7,9 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 Én opgave pr. linje. Ret kun de linjer, din opgave vedrører, og lad færdige opgaver blive stående.
 
 ## Afklaring
-- [ ] Vælg situation og kanal (afsnit 1 i `specs.md`)
+- [ ] Bekræft problemet, og vælg kanal (afsnit 1 i `specs.md`)
 - [ ] Vælg tekniske elementer (afsnit 5 i `specs.md`)
-- [ ] Skriv funktionelle krav (afsnit 4 i `specs.md`)
+- [ ] Gennemgå og vedtag de funktionelle krav (afsnit 4 i `specs.md`)
 - [ ] Skriv design: komponenter, endpoints og datamodel (afsnit 6 i `specs.md`)
 - [ ] Afgør de åbne punkter i `AGENTS.md`
 - [ ] Spørg underviseren, om TLS- og kryptografipunkterne udgår
@@ -17,8 +17,8 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Test, om Twilio-nummeret kan modtage SMS fra danske mobiler
 
 ## Opsætning
-- [ ] Opret GitHub-repo, og giv alle fire adgang
-- [ ] Læg `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `specs.md`, `docs.md`, `plan.md`, `.gitignore` og `.env.example` i repoets rod
+- [x] Opret GitHub-repo, og giv alle fire adgang
+- [x] Læg `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `specs.md`, `docs.md`, `plan.md`, `.gitignore` og `.env.example` i repoets rod
 - [ ] Bekræft, at hvert AI-værktøj indlæser `AGENTS.md`
 - [ ] Opret Node.js-projektet, og skriv kommandoerne ind i `AGENTS.md`
 - [ ] Få en første version til at køre på en server i datacenternetværket

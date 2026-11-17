@@ -1,0 +1,2 @@
+# Ens linjeskift (LF) i repoet og ved checkout på alle maskiner, uanset den enkeltes git-opsætning
+* text=auto eol=lf
