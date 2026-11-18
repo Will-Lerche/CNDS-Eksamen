@@ -1,0 +1,36 @@
+{
+  "name": "cnds-eksamen",
+  "version": "1.0.0",
+  "description": "Eksamensprojekt i Computernetværk og distribuerede systemer: hotellets webapp og Opally-delen",
+  "main": "backend/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Will-Lerche/CNDS-Eksamen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Will-Lerche/CNDS-Eksamen/issues"
+  },
+  "homepage": "https://github.com/Will-Lerche/CNDS-Eksamen#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.4",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^10.6.0",
+    "pg": "^8.23.1",
+    "twilio": "^6.3.1"
+  }
+}

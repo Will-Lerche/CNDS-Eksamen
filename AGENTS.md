@@ -28,7 +28,12 @@ Koden må gerne skrives af AI. Ved den mundtlige prøve skal gruppen kunne forkl
 Er en opgave i modstrid med `specs.md`, så stop og spørg. Ret ikke i `specs.md` uden at blive bedt om det.
 
 ## Kør og test
-- **ÅBENT 2:** Kommandoer til installation, start og test skrives ind, når repoet er sat op
+- Installér pakker: `npm install`
+- Kopiér `.env.example` til `.env`, og udfyld værdierne
+- Start lokalt: `npm run dev` (genstarter, når en fil ændres) eller `npm start`
+- Lokalt kører hotellet på `http://localhost:3000` og admin på `http://admin.localhost:3000`
+- Hurtig test: `curl http://localhost:3000/api/health`. I Windows PowerShell skrives `curl.exe`, fordi `curl` dér er et alias for `Invoke-WebRequest`
+- På serveren: `pm2 start ecosystem.config.js`
 
 ## Teknologi
 - Node.js med Express på serveren. HTML, CSS og JavaScript med `fetch()` i browseren

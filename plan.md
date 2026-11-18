@@ -24,7 +24,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [x] Opret GitHub-repo, og giv alle fire adgang
 - [x] Læg `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `specs.md`, `docs.md`, `plan.md`, `.gitignore` og `.env.example` i repoets rod
 - [ ] Bekræft, at hvert AI-værktøj indlæser `AGENTS.md`
-- [ ] Opret Node.js-projektet, og skriv kommandoerne ind i `AGENTS.md`
+- [x] Opret Node.js-projektet, og skriv kommandoerne ind i `AGENTS.md`
 - [ ] Få en første version til at køre på en server i datacenternetværket
 - [ ] Opret database-Dropletten i samme region og VPC som app-Dropletten
 - [ ] Installér PostgreSQL, og lad den kun lytte på den private IP
