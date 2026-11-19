@@ -24,4 +24,18 @@ const config = {
 
 config.isProduction = config.nodeEnv === 'production';
 
+// Henter en offentlig URL. I produktion skal den stå i .env. Lokalt bruges
+// localhost-adressen, så projektet kan køre uden at udfylde .env.
+function readPublicUrl(name, developmentDefault) {
+  if (config.isProduction) {
+    return requireEnv(name);
+  }
+  return process.env[name] || developmentDefault;
+}
+
+// De offentlige adresser for hotellets webapp og admin, fx https://<domæne>
+// og https://admin.<domæne>. Bruges bl.a. til at tjekke Origin-headeren (CSRF).
+config.publicUrl = readPublicUrl('PUBLIC_URL', `http://localhost:${config.port}`);
+config.adminUrl = readPublicUrl('ADMIN_URL', `http://admin.localhost:${config.port}`);
+
 module.exports = { config, requireEnv };

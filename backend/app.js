@@ -7,6 +7,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { isAdminHost } = require('./middleware/requireAdminHost');
+const checkOrigin = require('./middleware/checkOrigin');
 const notFound = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 const healthRouter = require('./routes/health');
@@ -27,6 +28,10 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '10kb' }));                          // JSON fra vores egen frontend
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));   // formulardata, fx webhooks fra Twilio
 app.use(cookieParser());                                           // læser Cookie-headeren til req.cookies
+
+// CSRF-beskyttelse: alle ændringer i API'et skal komme fra vores egen side.
+// Ligger før API-ruterne, men ikke foran /webhooks, som ikke har en Origin.
+app.use('/api', checkOrigin);
 
 // API-ruter
 app.use('/api/health', healthRouter);

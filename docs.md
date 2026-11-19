@@ -22,15 +22,19 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`) og `PORT` (standard `3000`). Ingen er påkrævet endnu
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke
+- Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
 
 ## Mappestruktur
 Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
 ```
 backend/
   app.js, server.js, config.js, errors.js
-  middleware/  errorHandler.js, notFound.js, requireAdminHost.js
+  middleware/  checkOrigin.js, errorHandler.js, notFound.js, requireAdminHost.js
   routes/      health.js
+  services/    passwords.js
+  validation/  auth.js
+  scripts/     measureBcrypt.js
 frontend/
   hotel/index.html, admin/login.html, shared/base.css
 ecosystem.config.js
@@ -55,13 +59,13 @@ ecosystem.config.js
 
 ### backend/app.js
 - Formål: sætter Express-appen sammen: body-parsing, cookies, ruter, statiske filer, 404 og fejlhåndtering
-- Vigtigste funktioner: `trust proxy` sat til loopback, `X-Powered-By` slået fra, body-grænse på 10 kB, statiske filer valgt ud fra Host-headeren
-- Fagbegreber i filen: middleware, HTTP-headers (Host, X-Forwarded-For), reverse proxy
+- Vigtigste funktioner: `trust proxy` sat til loopback, `X-Powered-By` slået fra, body-grænse på 10 kB, `checkOrigin` på alle `/api`-ruter, statiske filer valgt ud fra Host-headeren
+- Fagbegreber i filen: middleware, HTTP-headers (Host, X-Forwarded-For), reverse proxy, CSRF-beskyttelse
 - Afhænger af: `express`, `cookie-parser`, `middleware/*`, `routes/health.js`
 
 ### backend/config.js
 - Formål: læser miljøvariabler fra `.env` ét sted
-- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler
+- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt
 - Fagbegreber i filen: beskyttelse af hemmeligheder (API-nøgler holdes ude af koden)
 - Afhænger af: `dotenv`
 
@@ -80,6 +84,28 @@ ecosystem.config.js
 ### backend/middleware/requireAdminHost.js
 - Formål: `isAdminHost(req)` afgør ud fra Host-headeren, om requesten kom via `admin.`-subdomænet. `requireAdminHost` afviser med 403, hvis ikke
 - Fagbegreber i filen: adskillelse af gæst og personale på hver sin host
+
+### backend/middleware/checkOrigin.js
+- Formål: CSRF-beskyttelse. Afviser POST, PUT, PATCH og DELETE med 403, hvis `Origin`-headeren ikke er præcis den forventede origin. Requests til admin-hosten skal have `ADMIN_URL`s origin, og alle andre skal have `PUBLIC_URL`s. Mangler `Origin`, eller er den `null`, afvises requesten også. GET og HEAD tjekkes ikke
+- Bruges på `/api` i `app.js`. Ikke på `/webhooks`, fordi Twilio og Mailgun ikke sender `Origin`
+- Fagbegreber i filen: CSRF, Origin-header, same-origin
+- Afhænger af: `config.js`, `requireAdminHost.js`
+
+### backend/services/passwords.js
+- Formål: hashing og kontrol af passwords med bcrypt (asynkrone funktioner, cost 12)
+- Vigtigste funktioner: `hashPassword(password)` giver en bcrypt-hash med indbygget salt. `verifyPassword(password, passwordHash)` giver true eller false. Er `passwordHash` null (ukendt e-mail), sammenlignes alligevel med en dummy-hash, der laves ved opstart, så svartiden er den samme
+- Fagbegreber i filen: hashing med salt, work factor, timing-angreb, ikke-blokerende I/O (threadpool)
+- Afhænger af: `bcrypt`, `crypto`
+
+### backend/validation/auth.js
+- Formål: validering på serveren af input til oprettelse, login og profil. Returnerer et rent objekt eller kaster `AppError(400)`
+- Vigtigste funktioner: `validateSignup` (name, email, phone, password, valgfrit sms_opt_in), `validateLogin` (email, password) og `validateProfileUpdate` (name, phone, sms_opt_in, mindst ét felt)
+- Regler: body skal være et JSON-objekt. Ukendte felter afvises (fx `role`). Navn 1-100 tegn. E-mail trimmes og gemmes med små bogstaver. Telefon i E.164, og mellemrum fjernes. Nyt password mindst 10 tegn og højst 72 bytes. Ved login tjekkes kun, at password er tekst på højst 72 bytes. sms_opt_in skal være boolean
+- Fagbegreber i filen: validering på serveren, mass assignment
+- Afhænger af: `errors.js`
+
+### backend/scripts/measureBcrypt.js
+- Formål: måler den gennemsnitlige tid for bcrypts hash og compare ved cost 10, 12 og 14 (5 runder hver). Køres manuelt, helst på app-Dropletten
 
 ### backend/routes/health.js
 - Formål: `GET /api/health` til ping- og oppetidstests. Rører ikke databasen
