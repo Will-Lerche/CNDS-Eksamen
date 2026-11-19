@@ -13,26 +13,63 @@ Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på
 ## Overblik
 Kort beskrivelse af systemets dele, og hvordan de taler sammen.
 
-Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Der er endnu ingen database, kø eller worker.
+Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. Der er endnu ingen kø eller worker.
 
 ## Kør projektet
 Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (kun navne, aldrig værdier).
 
 - `npm install`, og kopiér `.env.example` til `.env`
+- PostgreSQL 16 lokalt: opret en database og en appbruger uden superbruger-rettigheder, og sæt `DATABASE_URL` i `.env`
+- `npm run migrate` opretter tabellerne. Det kan køres igen uden at gøre noget to gange
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`) og `PORT` (standard `3000`). Ingen er påkrævet endnu
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor
+- Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
+- Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
+
+### Lokal database (PostgreSQL 16)
+Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
+
+1. Installér PostgreSQL 16
+   - Windows: `winget install --id PostgreSQL.PostgreSQL.16 --exact`. Vælg et password til superbrugeren `postgres`, når installationen spørger
+   - macOS: `brew install postgresql@16` og derefter `brew services start postgresql@16`
+2. Lav et tilfældigt password til appbrugeren: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
+3. Åbn `psql` som superbruger
+   - Windows (PowerShell): `& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h 127.0.0.1`
+   - macOS: `$(brew --prefix postgresql@16)/bin/psql postgres`
+4. Opret appbrugeren og databasen. Ved `\password` indsættes passwordet fra trin 2 to gange:
+   ```sql
+   CREATE ROLE opally_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+   \password opally_app
+   CREATE DATABASE opally ENCODING 'UTF8' TEMPLATE template0;
+   REVOKE ALL ON DATABASE opally FROM PUBLIC;
+   GRANT CONNECT, TEMPORARY ON DATABASE opally TO opally_app;
+   \c opally
+   GRANT USAGE, CREATE ON SCHEMA public TO opally_app;
+   \q
+   ```
+5. Skriv i `.env`:
+   - `DATABASE_URL=postgresql://opally_app:<password fra trin 2>@127.0.0.1:5432/opally`
+   - `JWT_SECRET=<resultatet af node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">`
+6. Opret tabellerne: `npm run migrate`. Svaret skal være, at migrationerne er kørt
+7. Start appen med `npm run dev`
 
 ## Mappestruktur
 Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
 ```
 backend/
-  app.js, server.js, config.js, errors.js
-  middleware/  errorHandler.js, notFound.js, requireAdminHost.js
+  app.js, server.js, config.js, errors.js, cookies.js
+  db/          pool.js, migrations/001_create_users.sql, 002_create_sessions.sql, 003_create_otp_codes.sql
+  middleware/  checkOrigin.js, errorHandler.js, notFound.js, requireAdminHost.js
   routes/      health.js
+  services/    passwords.js, sessions.js
+  validation/  auth.js
+  scripts/     measureBcrypt.js, migrate.js
 frontend/
   hotel/index.html, admin/login.html, shared/base.css
+tests/
+  loginGrundlag.js
 ecosystem.config.js
 ```
 
@@ -55,15 +92,34 @@ ecosystem.config.js
 
 ### backend/app.js
 - Formål: sætter Express-appen sammen: body-parsing, cookies, ruter, statiske filer, 404 og fejlhåndtering
-- Vigtigste funktioner: `trust proxy` sat til loopback, `X-Powered-By` slået fra, body-grænse på 10 kB, statiske filer valgt ud fra Host-headeren
-- Fagbegreber i filen: middleware, HTTP-headers (Host, X-Forwarded-For), reverse proxy
+- Vigtigste funktioner: `trust proxy` sat til loopback, `X-Powered-By` slået fra, body-grænse på 10 kB, `checkOrigin` på alle `/api`-ruter, statiske filer valgt ud fra Host-headeren
+- Fagbegreber i filen: middleware, HTTP-headers (Host, X-Forwarded-For), reverse proxy, CSRF-beskyttelse
 - Afhænger af: `express`, `cookie-parser`, `middleware/*`, `routes/health.js`
 
 ### backend/config.js
 - Formål: læser miljøvariabler fra `.env` ét sted
-- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler
+- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl, jwtSecret, databaseUrl) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt
 - Fagbegreber i filen: beskyttelse af hemmeligheder (API-nøgler holdes ude af koden)
 - Afhænger af: `dotenv`
+
+### backend/cookies.js
+- Formål: sætter, læser og rydder sessionscookien. Gæst: `__Host-guest` med `SameSite=Lax`. Personale: `__Host-staff` med `SameSite=Strict`. Begge har `HttpOnly`, `Secure`, `Path=/` og ingen `Domain`. `Max-Age` er tokenets levetid (2 og 8 timer)
+- Vigtigste funktioner: `setSessionCookie(res, role, token)`, `clearSessionCookie(res, role)` og `readSessionCookie(req, role)`
+- `Secure` er også slået til lokalt. Browsere behandler `http://localhost` og `http://admin.localhost` som sikre, så cookien virker uden HTTPS dér
+- Fagbegreber i filen: Set-Cookie og Cookie-headers, `__Host-`-præfiks, HttpOnly (XSS), Secure (aflytning), SameSite (CSRF)
+- Afhænger af: `services/sessions.js`
+
+### backend/db/pool.js
+- Formål: én fælles `pg.Pool` til hele processen. Højst 10 forbindelser, en ledig forbindelse lukkes efter 30 sekunder, og der gives op efter 5 sekunder, hvis databasen ikke svarer. Fejl på ledige forbindelser logges i stedet for at stoppe processen
+- Fagbegreber i filen: connection pool (genbrug af TCP-forbindelser og login til databasen)
+- Afhænger af: `pg`, `config.js`
+
+### backend/db/migrations/
+- `001_create_users.sql`: tabellen `users`. Rolle `guest` eller `staff` (standard `guest`). E-mail er unik og skal være med små bogstaver. Telefon i E.164 eller tom. `password_hash` er en bcrypt-hash
+- `002_create_sessions.sql`: tabellen `sessions`. `id` er 32 hex-tegn (128 bit). `user_id` peger på `users` og slettes med brugeren. `expires_at` og `revoked_at`. Indeks på `user_id`
+- `003_create_otp_codes.sql`: tabellen `otp_codes`. Formål og kanal er begrænset til de tilladte værdier. `code_hash` skal være 64 hex-tegn (HMAC-SHA256), så koden ikke kan gemmes i klartekst. Forsøgstæller, `used_at` og indeks på (`user_id`, `purpose`)
+- Reglerne er CHECK, UNIQUE og fremmednøgler i databasen, så de gælder, selv hvis valideringen i koden springes over
+- En migration, der er merget til `main`, rettes aldrig. Ændringer laves i en ny fil med næste nummer
 
 ### backend/errors.js
 - Formål: fejlklassen `AppError` med HTTP-statuskode
@@ -81,8 +137,48 @@ ecosystem.config.js
 - Formål: `isAdminHost(req)` afgør ud fra Host-headeren, om requesten kom via `admin.`-subdomænet. `requireAdminHost` afviser med 403, hvis ikke
 - Fagbegreber i filen: adskillelse af gæst og personale på hver sin host
 
+### backend/middleware/checkOrigin.js
+- Formål: CSRF-beskyttelse. Afviser POST, PUT, PATCH og DELETE med 403, hvis `Origin`-headeren ikke er præcis den forventede origin. Requests til admin-hosten skal have `ADMIN_URL`s origin, og alle andre skal have `PUBLIC_URL`s. Mangler `Origin`, eller er den `null`, afvises requesten også. GET og HEAD tjekkes ikke
+- Bruges på `/api` i `app.js`. Ikke på `/webhooks`, fordi Twilio og Mailgun ikke sender `Origin`
+- Fagbegreber i filen: CSRF, Origin-header, same-origin
+- Afhænger af: `config.js`, `requireAdminHost.js`
+
+### backend/services/passwords.js
+- Formål: hashing og kontrol af passwords med bcrypt (asynkrone funktioner, cost 12)
+- Vigtigste funktioner: `hashPassword(password)` giver en bcrypt-hash med indbygget salt. `verifyPassword(password, passwordHash)` giver true eller false. Er `passwordHash` null (ukendt e-mail), sammenlignes alligevel med en dummy-hash, der laves ved opstart, så svartiden er den samme
+- Fagbegreber i filen: hashing med salt, work factor, timing-angreb, ikke-blokerende I/O (threadpool)
+- Afhænger af: `bcrypt`, `crypto`
+
+### backend/services/sessions.js
+- Formål: session-id og JWT til sessioner samt oprettelse, opslag og tilbagekaldelse i tabellen `sessions`
+- Vigtigste funktioner: `createSessionId()` giver 128 tilfældige bit som hex. `signSessionToken(userId, role, sessionId)` laver en JWT (HS256) med `sub`, `role`, `sid`, `iat` og `exp`. `verifySessionToken(token)` giver `{ userId, role, sessionId }` eller kaster `AppError(401)`. Kun HS256 accepteres, så tokens med `alg: none` afvises. `getSessionLifetimeSeconds(role)`: gæst 2 timer, personale 8 timer
+- Database: `createSession(userId, role)` indsætter en ny session med udløb og returnerer JWT'en. `findActiveSession(sessionId)` giver `{ userId, role }` (rollen fra `users`), hvis sessionen ikke er tilbagekaldt eller udløbet, ellers null. `revokeSession(sessionId)` sætter `revoked_at`
+- Fagbegreber i filen: JWT, HMAC-signatur (symmetrisk nøgle), session fixation, playback attack, parametriserede forespørgsler
+- Afhænger af: `jsonwebtoken`, `crypto`, `db/pool.js`, `config.js`, `errors.js`
+
+### backend/validation/auth.js
+- Formål: validering på serveren af input til oprettelse, login og profil. Returnerer et rent objekt eller kaster `AppError(400)`
+- Vigtigste funktioner: `validateSignup` (name, email, phone, password, valgfrit sms_opt_in), `validateLogin` (email, password) og `validateProfileUpdate` (name, phone, sms_opt_in, mindst ét felt)
+- Regler: body skal være et JSON-objekt. Ukendte felter afvises (fx `role`). Navn 1-100 tegn. E-mail trimmes og gemmes med små bogstaver. Telefon i E.164, og mellemrum fjernes. Nyt password mindst 10 tegn og højst 72 bytes. Ved login tjekkes kun, at password er tekst på højst 72 bytes. sms_opt_in skal være boolean
+- Fagbegreber i filen: validering på serveren, mass assignment
+- Afhænger af: `errors.js`
+
+### backend/scripts/migrate.js
+- Formål: kører SQL-filerne i `db/migrations` i nummerorden. Tabellen `schema_migrations` husker, hvilke filer der er kørt, så scriptet kan køres igen. Hver fil kører i én transaktion og rulles helt tilbage, hvis noget fejler. Køres med `npm run migrate`
+- Fagbegreber i filen: transaktion (BEGIN, COMMIT og ROLLBACK)
+- Afhænger af: `db/pool.js`
+
+### backend/scripts/measureBcrypt.js
+- Formål: måler den gennemsnitlige tid for bcrypts hash og compare ved cost 10, 12 og 14 (5 runder hver). Køres manuelt, helst på app-Dropletten
+
 ### backend/routes/health.js
 - Formål: `GET /api/health` til ping- og oppetidstests. Rører ikke databasen
+
+### tests/loginGrundlag.js
+- Formål: tester login-grundlaget uden login-ruter. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
+- Tester: bcrypt (salt, cost, rigtigt og forkert password, samme svartid ved ukendt e-mail), validering (mass assignment, passwordlængde, E.164), JWT (ændret rolle, `alg: none`, forkert nøgle, udløb), cookie-flag, Origin-tjek mod den rigtige app og sessioner og regler i databasen
+- Opretter en fiktiv testbruger (`testscript@example.com`) og sletter den igen
+- Afhænger af: den lokale database, `.env` og filerne i `backend/`
 
 ### ecosystem.config.js
 - Formål: PM2-opsætning på serveren. Starter `backend/server.js` med `NODE_ENV=production`
@@ -97,6 +193,13 @@ ecosystem.config.js
 
 ## Data
 Hvad der gemmes, hvor det gemmes, og hvad der er krypteret eller hashet.
+
+| Tabel | Indhold | Hashet eller beskyttet |
+|---|---|---|
+| `users` | Gæster og personale: rolle, navn, e-mail, telefon, bekræftelsestidspunkter, SMS-valg | Password kun som bcrypt-hash |
+| `sessions` | Én række pr. login med udløb og evt. tilbagekaldelse | Session-id'et står også i den signerede JWT |
+| `otp_codes` | Engangskoder med formål, kanal, udløb, forsøg og brug | Kun HMAC-SHA256 af koden |
+| `schema_migrations` | Hvilke migrationer der er kørt | |
 
 ## Eksterne tjenester
 Hvilke API'er appen kalder, hvad de bruges til, og hvordan fejl og ventetid håndteres.
