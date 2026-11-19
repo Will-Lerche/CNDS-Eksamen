@@ -47,16 +47,16 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 Login og engangskoder er tilføjet. Resten tilføjes, når `specs.md` er vedtaget. Én overskrift pr. funktion og én opgave pr. linje. Detaljerne står i afsnit 6 i `specs.md` under "Login, sessioner og engangskoder".
 
 ### Login og sessioner (F8, F9)
-- [~] Databasetabeller: `users`, `sessions` og `otp_codes`
-- [~] Hjælpefunktioner til passwords: hash og sammenlign med bcrypts asynkrone funktioner
+- [x] Databasetabeller: `users`, `sessions` og `otp_codes`
+- [x] Hjælpefunktioner til passwords: hash og sammenlign med bcrypts asynkrone funktioner
 - [~] Mål svartiden for bcrypt ved cost 10, 12 og 14, og vælg cost-faktor
-- [~] Hjælpefunktioner til sessioner: opret session-id, signér og verificér JWT, tilbagekald session
-- [~] Hjælpefunktioner, der sætter og rydder `__Host-guest` og `__Host-staff` med de rigtige flag
+- [x] Hjælpefunktioner til sessioner: opret session-id, signér og verificér JWT, tilbagekald session
+- [x] Hjælpefunktioner, der sætter og rydder `__Host-guest` og `__Host-staff` med de rigtige flag
 - [ ] Middleware `requireAuth`: tjek JWT'ens signatur og udløb, og slå sessionen op
 - [ ] Middleware `requireRole`: tjek rollen på serveren
 - [ ] Middleware, der kun tillader admin-ruter via admin-subdomænet
-- [~] Middleware, der afviser POST, PATCH og DELETE, hvis `Origin` ikke er vores egen host
-- [~] Validering på serveren af input til oprettelse, login og profil
+- [x] Middleware, der afviser POST, PATCH og DELETE, hvis `Origin` ikke er vores egen host
+- [x] Validering på serveren af input til oprettelse, login og profil
 - [ ] `POST /api/auth/signup`
 - [ ] `POST /api/auth/login` med samme fejlbesked og dummy-hash ved ukendt e-mail
 - [ ] `POST /api/auth/logout`, der tilbagekalder sessionen og rydder cookien
