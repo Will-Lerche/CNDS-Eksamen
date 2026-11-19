@@ -24,8 +24,35 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Lav den med `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
+
+### Lokal database (PostgreSQL 16)
+Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
+
+1. Installér PostgreSQL 16
+   - Windows: `winget install --id PostgreSQL.PostgreSQL.16 --exact`. Vælg et password til superbrugeren `postgres`, når installationen spørger
+   - macOS: `brew install postgresql@16` og derefter `brew services start postgresql@16`
+2. Lav et tilfældigt password til appbrugeren: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
+3. Åbn `psql` som superbruger
+   - Windows (PowerShell): `& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h 127.0.0.1`
+   - macOS: `$(brew --prefix postgresql@16)/bin/psql postgres`
+4. Opret appbrugeren og databasen. Ved `\password` indsættes passwordet fra trin 2 to gange:
+   ```sql
+   CREATE ROLE opally_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+   \password opally_app
+   CREATE DATABASE opally ENCODING 'UTF8' TEMPLATE template0;
+   REVOKE ALL ON DATABASE opally FROM PUBLIC;
+   GRANT CONNECT, TEMPORARY ON DATABASE opally TO opally_app;
+   \c opally
+   GRANT USAGE, CREATE ON SCHEMA public TO opally_app;
+   \q
+   ```
+5. Skriv i `.env`:
+   - `DATABASE_URL=postgresql://opally_app:<password fra trin 2>@127.0.0.1:5432/opally`
+   - `JWT_SECRET=<resultatet af node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">`
+6. Opret tabellerne: `npm run migrate`. Svaret skal være, at migrationerne er kørt
+7. Start appen med `npm run dev`
 
 ## Mappestruktur
 Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
