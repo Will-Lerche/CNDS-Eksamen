@@ -38,4 +38,18 @@ function readPublicUrl(name, developmentDefault) {
 config.publicUrl = readPublicUrl('PUBLIC_URL', `http://localhost:${config.port}`);
 config.adminUrl = readPublicUrl('ADMIN_URL', `http://admin.localhost:${config.port}`);
 
+// Hemmelig nøgle til at signere JWT'er med HMAC-SHA256 (HS256). Den, der kender
+// nøglen, kan lave gyldige tokens, så den skal være lang og tilfældig og må
+// aldrig forlade serveren. Kræves også lokalt, så login virker ens overalt.
+// Laves med: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+function readJwtSecret() {
+  const secret = requireEnv('JWT_SECRET');
+  if (secret.length < 32) {
+    throw new Error('JWT_SECRET skal være mindst 32 tegn. Lav den med crypto.randomBytes(32)');
+  }
+  return secret;
+}
+
+config.jwtSecret = readJwtSecret();
+
 module.exports = { config, requireEnv };

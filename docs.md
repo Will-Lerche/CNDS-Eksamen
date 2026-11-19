@@ -22,17 +22,17 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) er påkrævet overalt, også lokalt. Lav den med `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
 
 ## Mappestruktur
 Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
 ```
 backend/
-  app.js, server.js, config.js, errors.js
+  app.js, server.js, config.js, errors.js, cookies.js
   middleware/  checkOrigin.js, errorHandler.js, notFound.js, requireAdminHost.js
   routes/      health.js
-  services/    passwords.js
+  services/    passwords.js, sessions.js
   validation/  auth.js
   scripts/     measureBcrypt.js
 frontend/
@@ -65,9 +65,16 @@ ecosystem.config.js
 
 ### backend/config.js
 - Formål: læser miljøvariabler fra `.env` ét sted
-- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt
+- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl, jwtSecret) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt
 - Fagbegreber i filen: beskyttelse af hemmeligheder (API-nøgler holdes ude af koden)
 - Afhænger af: `dotenv`
+
+### backend/cookies.js
+- Formål: sætter, læser og rydder sessionscookien. Gæst: `__Host-guest` med `SameSite=Lax`. Personale: `__Host-staff` med `SameSite=Strict`. Begge har `HttpOnly`, `Secure`, `Path=/` og ingen `Domain`. `Max-Age` er tokenets levetid (2 og 8 timer)
+- Vigtigste funktioner: `setSessionCookie(res, role, token)`, `clearSessionCookie(res, role)` og `readSessionCookie(req, role)`
+- `Secure` er også slået til lokalt. Browsere behandler `http://localhost` og `http://admin.localhost` som sikre, så cookien virker uden HTTPS dér
+- Fagbegreber i filen: Set-Cookie og Cookie-headers, `__Host-`-præfiks, HttpOnly (XSS), Secure (aflytning), SameSite (CSRF)
+- Afhænger af: `services/sessions.js`
 
 ### backend/errors.js
 - Formål: fejlklassen `AppError` med HTTP-statuskode
@@ -96,6 +103,12 @@ ecosystem.config.js
 - Vigtigste funktioner: `hashPassword(password)` giver en bcrypt-hash med indbygget salt. `verifyPassword(password, passwordHash)` giver true eller false. Er `passwordHash` null (ukendt e-mail), sammenlignes alligevel med en dummy-hash, der laves ved opstart, så svartiden er den samme
 - Fagbegreber i filen: hashing med salt, work factor, timing-angreb, ikke-blokerende I/O (threadpool)
 - Afhænger af: `bcrypt`, `crypto`
+
+### backend/services/sessions.js
+- Formål: session-id og JWT til sessioner. Opslag, oprettelse og tilbagekaldelse i tabellen `sessions` er endnu ikke lavet (kræver databasen)
+- Vigtigste funktioner: `createSessionId()` giver 128 tilfældige bit som hex. `signSessionToken(userId, role, sessionId)` laver en JWT (HS256) med `sub`, `role`, `sid`, `iat` og `exp`. `verifySessionToken(token)` giver `{ userId, role, sessionId }` eller kaster `AppError(401)`. Kun HS256 accepteres, så tokens med `alg: none` afvises. `getSessionLifetimeSeconds(role)`: gæst 2 timer, personale 8 timer
+- Fagbegreber i filen: JWT, HMAC-signatur (symmetrisk nøgle), session fixation, playback attack
+- Afhænger af: `jsonwebtoken`, `crypto`, `config.js`, `errors.js`
 
 ### backend/validation/auth.js
 - Formål: validering på serveren af input til oprettelse, login og profil. Returnerer et rent objekt eller kaster `AppError(400)`
