@@ -276,7 +276,7 @@ Validering i browseren er kun for brugervenlighedens skyld. Alle regler håndhæ
 - HTTPS med certifikat fra Let's Encrypt (Certbot) for `<domæne>`, `www` og `admin`. HTTP omdirigeres til HTTPS (Øvelsestime 10)
 - Sikkerhedsheaders sættes i Nginx: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff` og `Referrer-Policy`
 - Firewall: ufw og DigitalOceans cloud firewall åbner kun 22, 80 og 443. Node-appen lytter kun på `127.0.0.1`, så den ikke kan nås uden om Nginx (11. Lektion)
-- SSH med nøgler. Login med password slås fra
+- SSH til Droplets med password. Projektet er en demo af webappen, så selve Droplets hærdes ikke yderligere
 - Database-Dropletten: PostgreSQL lytter kun på den private IP. Cloud firewallen tillader kun port 5432 fra app-Dropletten. `pg_hba.conf` tillader kun app-Droplettens private IP med `scram-sha-256`
 - Appen bruger en databasebruger med kun de rettigheder, den har brug for, ikke superbrugeren `postgres`
 - Backup med `pg_dump` før større ændringer

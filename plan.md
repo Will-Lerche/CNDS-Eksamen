@@ -30,7 +30,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Installér PostgreSQL, og lad den kun lytte på den private IP
 - [ ] Opret databasen og en databasebruger til appen med begrænsede rettigheder
 - [ ] `pg_hba.conf`: tillad kun app-Droplettens private IP med `scram-sha-256`
-- [ ] Cloud firewall på database-Dropletten: port 5432 kun fra app-Dropletten, og SSH med nøgler
+- [ ] Cloud firewall på database-Dropletten: port 5432 kun fra app-Dropletten
 - [ ] Test forbindelsen fra app-Dropletten, og at port 5432 ikke kan nås udefra
 - [ ] Registrér domænet hos name.com, og peg det på DigitalOceans nameservers
 - [ ] Opret DNS-records hos DigitalOcean: A for domænet, `www` og `admin`
@@ -40,7 +40,6 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Certifikat fra Let's Encrypt for domænet, `www` og `admin`
 - [ ] Sikkerhedsheaders i Nginx (HSTS, Content-Security-Policy, nosniff, Referrer-Policy)
 - [ ] Firewall: ufw og DigitalOceans cloud firewall åbner kun 22, 80 og 443. Node lytter kun på `127.0.0.1`
-- [ ] SSH med nøgler for alle fire, og login med password slået fra
 - [ ] Tilføj miljøvariablerne fra afsnit 6 i `specs.md` til `.env.example` (kun navne)
 
 ## Funktioner
