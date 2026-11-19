@@ -50,8 +50,8 @@ Login og engangskoder er tilføjet. Resten tilføjes, når `specs.md` er vedtage
 - [ ] Databasetabeller: `users`, `sessions` og `otp_codes`
 - [~] Hjælpefunktioner til passwords: hash og sammenlign med bcrypts asynkrone funktioner
 - [~] Mål svartiden for bcrypt ved cost 10, 12 og 14, og vælg cost-faktor
-- [ ] Hjælpefunktioner til sessioner: opret session-id, signér og verificér JWT, tilbagekald session
-- [ ] Hjælpefunktioner, der sætter og rydder `__Host-guest` og `__Host-staff` med de rigtige flag
+- [~] Hjælpefunktioner til sessioner: opret session-id, signér og verificér JWT, tilbagekald session
+- [~] Hjælpefunktioner, der sætter og rydder `__Host-guest` og `__Host-staff` med de rigtige flag
 - [ ] Middleware `requireAuth`: tjek JWT'ens signatur og udløb, og slå sessionen op
 - [ ] Middleware `requireRole`: tjek rollen på serveren
 - [ ] Middleware, der kun tillader admin-ruter via admin-subdomænet
