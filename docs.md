@@ -26,6 +26,7 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
 - Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
+- Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
 
 ### Lokal database (PostgreSQL 16)
 Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
@@ -67,6 +68,8 @@ backend/
   scripts/     measureBcrypt.js, migrate.js
 frontend/
   hotel/index.html, admin/login.html, shared/base.css
+tests/
+  loginGrundlag.js
 ecosystem.config.js
 ```
 
@@ -170,6 +173,12 @@ ecosystem.config.js
 
 ### backend/routes/health.js
 - Formål: `GET /api/health` til ping- og oppetidstests. Rører ikke databasen
+
+### tests/loginGrundlag.js
+- Formål: tester login-grundlaget uden login-ruter. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
+- Tester: bcrypt (salt, cost, rigtigt og forkert password, samme svartid ved ukendt e-mail), validering (mass assignment, passwordlængde, E.164), JWT (ændret rolle, `alg: none`, forkert nøgle, udløb), cookie-flag, Origin-tjek mod den rigtige app og sessioner og regler i databasen
+- Opretter en fiktiv testbruger (`testscript@example.com`) og sletter den igen
+- Afhænger af: den lokale database, `.env` og filerne i `backend/`
 
 ### ecosystem.config.js
 - Formål: PM2-opsætning på serveren. Starter `backend/server.js` med `NODE_ENV=production`
