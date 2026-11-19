@@ -52,4 +52,9 @@ function readJwtSecret() {
 
 config.jwtSecret = readJwtSecret();
 
+// Forbindelse til PostgreSQL, fx postgresql://bruger:password@host:5432/database.
+// Lokalt peger den på 127.0.0.1. På serveren peger den på database-Droplettens
+// private IP i VPC'en. Brugeren er appens egen databasebruger, ikke postgres.
+config.databaseUrl = requireEnv('DATABASE_URL');
+
 module.exports = { config, requireEnv };

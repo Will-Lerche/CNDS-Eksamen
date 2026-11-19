@@ -3,11 +3,10 @@
 // som også står i tabellen sessions. Ved hver request tjekkes både tokenets
 // signatur og, at sessionen stadig findes og ikke er tilbagekaldt. Så kan
 // logout gøre en stjålet kopi af tokenet ubrugelig (playback attack).
-// Funktionerne, der opretter, slår op og tilbagekalder sessioner i databasen,
-// tilføjes her, når tabellen sessions er lavet.
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const pool = require('../db/pool');
 const { config } = require('../config');
 const { AppError } = require('../errors');
 
@@ -82,10 +81,62 @@ function verifySessionToken(token) {
   };
 }
 
+// Opretter en ny session i databasen ved login og returnerer den signerede JWT,
+// som routen lægger i cookien. Udløbet i databasen og i tokenet er det samme.
+// Forespørgslen er parametriseret ($1, $2, $3), så input aldrig bliver en del
+// af SQL-teksten (beskyttelse mod SQL injection).
+async function createSession(userId, role) {
+  const sessionId = createSessionId();
+  const lifetimeSeconds = getSessionLifetimeSeconds(role);
+
+  await pool.query(
+    `INSERT INTO sessions (id, user_id, expires_at)
+     VALUES ($1, $2, now() + make_interval(secs => $3))`,
+    [sessionId, userId, lifetimeSeconds]
+  );
+
+  return signSessionToken(userId, role, sessionId);
+}
+
+// Slår en session op og returnerer { userId, role }, hvis den findes, ikke er
+// tilbagekaldt og ikke er udløbet. Ellers null.
+// Rollen hentes fra users-tabellen, så den altid er den, databasen kender, og
+// ikke kun den, der står i tokenet.
+async function findActiveSession(sessionId) {
+  const result = await pool.query(
+    `SELECT sessions.user_id, users.role
+     FROM sessions
+     JOIN users ON users.id = sessions.user_id
+     WHERE sessions.id = $1
+       AND sessions.revoked_at IS NULL
+       AND sessions.expires_at > now()`,
+    [sessionId]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+  const row = result.rows[0];
+  return { userId: String(row.user_id), role: row.role };
+}
+
+// Tilbagekalder en session ved logout. Rækken slettes ikke, men får revoked_at,
+// så det kan ses, hvornår sessionen blev afsluttet. Et token med dette
+// session-id afvises derefter, selvom signaturen og udløbet stadig er gyldige.
+async function revokeSession(sessionId) {
+  await pool.query(
+    'UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL',
+    [sessionId]
+  );
+}
+
 module.exports = {
   SESSION_LIFETIME_SECONDS,
   getSessionLifetimeSeconds,
   createSessionId,
   signSessionToken,
   verifySessionToken,
+  createSession,
+  findActiveSession,
+  revokeSession,
 };
