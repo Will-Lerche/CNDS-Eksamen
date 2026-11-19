@@ -47,7 +47,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 Login og engangskoder er tilføjet. Resten tilføjes, når `specs.md` er vedtaget. Én overskrift pr. funktion og én opgave pr. linje. Detaljerne står i afsnit 6 i `specs.md` under "Login, sessioner og engangskoder".
 
 ### Login og sessioner (F8, F9)
-- [ ] Databasetabeller: `users`, `sessions` og `otp_codes`
+- [~] Databasetabeller: `users`, `sessions` og `otp_codes`
 - [~] Hjælpefunktioner til passwords: hash og sammenlign med bcrypts asynkrone funktioner
 - [~] Mål svartiden for bcrypt ved cost 10, 12 og 14, og vælg cost-faktor
 - [~] Hjælpefunktioner til sessioner: opret session-id, signér og verificér JWT, tilbagekald session
