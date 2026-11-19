@@ -39,7 +39,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Nginx: server blocks for domænet og `admin`, og HTTP omdirigeres til HTTPS
 - [ ] Certifikat fra Let's Encrypt for domænet, `www` og `admin`
 - [ ] Sikkerhedsheaders i Nginx (HSTS, Content-Security-Policy, nosniff, Referrer-Policy)
-- [ ] Firewall: ufw og DigitalOceans cloud firewall åbner kun 22, 80 og 443. Node lytter kun på `127.0.0.1`
+- [ ] Firewall: ufw på app-Dropletten åbner kun 22, 80 og 443. Node lytter kun på `127.0.0.1`
 - [ ] Tilføj miljøvariablerne fra afsnit 6 i `specs.md` til `.env.example` (kun navne)
 
 ## Funktioner

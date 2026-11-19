@@ -275,9 +275,9 @@ Validering i browseren er kun for brugervenlighedens skyld. Alle regler håndhæ
 ### Sikkerhed i drift
 - HTTPS med certifikat fra Let's Encrypt (Certbot) for `<domæne>`, `www` og `admin`. HTTP omdirigeres til HTTPS (Øvelsestime 10)
 - Sikkerhedsheaders sættes i Nginx: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff` og `Referrer-Policy`
-- Firewall: ufw og DigitalOceans cloud firewall åbner kun 22, 80 og 443. Node-appen lytter kun på `127.0.0.1`, så den ikke kan nås uden om Nginx (11. Lektion)
+- Firewall: ufw på app-Dropletten åbner kun 22, 80 og 443. Node-appen lytter kun på `127.0.0.1`, så den ikke kan nås uden om Nginx (11. Lektion)
 - SSH til Droplets med password. Projektet er en demo af webappen, så selve Droplets hærdes ikke yderligere
-- Database-Dropletten: PostgreSQL lytter kun på den private IP. Cloud firewallen tillader kun port 5432 fra app-Dropletten. `pg_hba.conf` tillader kun app-Droplettens private IP med `scram-sha-256`
+- Database-Dropletten: PostgreSQL lytter kun på den private IP. ufw åbner kun for SSH og for port 5432 fra app-Dropletten. `pg_hba.conf` tillader kun app-Droplettens private IP med `scram-sha-256`
 - Appen bruger en databasebruger med kun de rettigheder, den har brug for, ikke superbrugeren `postgres`
 - Backup med `pg_dump` før større ændringer
 - Webhooks: Twilios signatur (`X-Twilio-Signature`) og Mailguns signatur (HMAC af timestamp og token) tjekkes. Signaturen beregnes ud fra den offentlige URL, ikke den interne bag Nginx. Mailgun-webhooks med et gammelt timestamp eller et token, der allerede står i `webhook_nonces`, afvises (genafspilning)
