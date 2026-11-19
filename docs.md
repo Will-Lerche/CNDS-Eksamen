@@ -104,6 +104,23 @@ Hvilke API'er appen kalder, hvad de bruges til, og hvordan fejl og ventetid hån
 ## Drift
 Server, proceshåndtering, domæne, certifikat, og hvordan en ny version lægges op.
 
+### Droplets
+To Droplets hos DigitalOcean i London med Ubuntu 24.04. De ligger i samme VPC (privat net `10.106.0.0/20`) og taler sammen over den private IP. Login med SSH og password.
+
+| Droplet | Privat IP | Indhold |
+|---|---|---|
+| App-Dropletten | `10.106.0.3` | Node-appen er ikke lagt op endnu. PostgreSQL-klienten (`psql`) er installeret til test |
+| Database-Dropletten | `10.106.0.2` | PostgreSQL 16 |
+
+### Database-Dropletten
+- Database `opally` med brugeren `opally_app`. Brugeren er ikke superbruger og kan ikke oprette databaser eller roller. Den må oprette tabeller i skemaet `public` (til migrationerne). Andre brugere har ingen adgang til databasen
+- Passwordet til `opally_app` står kun i `.env` på app-Dropletten som en del af `DATABASE_URL`: `postgresql://opally_app:<password>@10.106.0.2:5432/opally`
+- `postgresql.conf`: `listen_addresses = 'localhost,10.106.0.2'`. PostgreSQL lytter ikke på den offentlige IP
+- `pg_hba.conf`: `host opally opally_app 10.106.0.3/32 scram-sha-256`. Kun app-Dropletten må logge ind udefra, kun som `opally_app` og kun i `opally`
+- Firewall (ufw): tillader SSH og port 5432/tcp fra `10.106.0.3`. Al anden indgående trafik afvises
+- Testet: `psql` fra app-Dropletten forbinder som `opally_app` til `10.106.0.2`. `Test-NetConnection` til database-Droplettens offentlige IP på port 5432 fejler
+- Tabellerne er ikke oprettet endnu. Det sker med `npm run migrate` på app-Dropletten, når koden er lagt op
+
 ## Brug af AI i projektet
 - Værktøjer i gruppen: Claude, Gemini og ChatGPT
 - Udfyldes ærligt inden aflevering: hvad AI har lavet, hvad gruppen selv har lavet, og hvordan koden er kontrolleret

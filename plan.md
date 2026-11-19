@@ -26,12 +26,12 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Bekræft, at hvert AI-værktøj indlæser `AGENTS.md`
 - [x] Opret Node.js-projektet, og skriv kommandoerne ind i `AGENTS.md`
 - [ ] Få en første version til at køre på en server i datacenternetværket
-- [ ] Opret database-Dropletten i samme region og VPC som app-Dropletten
-- [ ] Installér PostgreSQL, og lad den kun lytte på den private IP
-- [ ] Opret databasen og en databasebruger til appen med begrænsede rettigheder
-- [ ] `pg_hba.conf`: tillad kun app-Droplettens private IP med `scram-sha-256`
-- [ ] Cloud firewall på database-Dropletten: port 5432 kun fra app-Dropletten
-- [ ] Test forbindelsen fra app-Dropletten, og at port 5432 ikke kan nås udefra
+- [x] Opret database-Dropletten i samme region og VPC som app-Dropletten
+- [x] Installér PostgreSQL, og lad den kun lytte på den private IP
+- [x] Opret databasen og en databasebruger til appen med begrænsede rettigheder
+- [x] `pg_hba.conf`: tillad kun app-Droplettens private IP med `scram-sha-256`
+- [x] Firewall (ufw) på database-Dropletten: port 5432 kun fra app-Dropletten
+- [x] Test forbindelsen fra app-Dropletten, og at port 5432 ikke kan nås udefra
 - [ ] Registrér domænet hos name.com, og peg det på DigitalOceans nameservers
 - [ ] Opret DNS-records hos DigitalOcean: A for domænet, `www` og `admin`
 - [ ] Opret Mailgun-konto (EU-region), og tilføj et mail-subdomæne med MX-, SPF- og DKIM-records
