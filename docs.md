@@ -13,7 +13,7 @@ Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på
 ## Overblik
 Kort beskrivelse af systemets dele, og hvordan de taler sammen.
 
-Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. `backend/services/mistral.js` kan sende en samtale til Mistrals chat-API over HTTPS, men AI'en er endnu ikke koblet på noget flow. Der er endnu ingen kø eller worker.
+Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. `backend/services/ai.js` kan svare en gæst ud fra hotelviden i databasen. Den kalder Mistrals chat-API over HTTPS gennem `backend/services/mistral.js`. AI'en er endnu ikke koblet på noget flow. Der er endnu ingen kø eller worker.
 
 ## Kør projektet
 Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (kun navne, aldrig værdier).
@@ -29,6 +29,7 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
 - Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
 - Test AI-grundlaget: `node tests/aiGrundlag.js` (kræver den lokale database med migrationer og seed og `AI_API_KEY`)
+- Test AI-assistentens svar: `node tests/aiSvar.js` (samme krav)
 
 ### Lokal database (PostgreSQL 16)
 Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
@@ -65,13 +66,13 @@ backend/
   db/          pool.js, seed.sql, migrations/001_create_users.sql, 002_create_sessions.sql, 003_create_otp_codes.sql, 004_create_hotel_knowledge.sql
   middleware/  checkOrigin.js, errorHandler.js, notFound.js, requireAdminHost.js
   routes/      health.js
-  services/    passwords.js, sessions.js, mistral.js
+  services/    passwords.js, sessions.js, ai.js, mistral.js
   validation/  auth.js
   scripts/     measureBcrypt.js, migrate.js, seed.js
 frontend/
   hotel/index.html, admin/login.html, shared/base.css
 tests/
-  loginGrundlag.js, aiGrundlag.js
+  loginGrundlag.js, aiGrundlag.js, aiSvar.js
 ecosystem.config.js
 ```
 
@@ -159,8 +160,16 @@ ecosystem.config.js
 - Fagbegreber i filen: JWT, HMAC-signatur (symmetrisk nøgle), session fixation, playback attack, parametriserede forespørgsler
 - Afhænger af: `jsonwebtoken`, `crypto`, `db/pool.js`, `config.js`, `errors.js`
 
+### backend/services/ai.js
+- Formål: AI-assistenten, der svarer gæsten efter lukketid ud fra hotelviden (F1, F2). Den eneste fil, resten af systemet skal kalde for AI-svar. Kender ikke udbyderen, men kalder `mistral.js`
+- Vigtigste funktioner: `answerGuest(history, options)`. `history` er samtalen som `{ sender, text }` med `sender` `guest`, `ai` eller `staff`, og den sidste besked skal være fra gæsten. `options.clarificationAllowed` er false, hvis der allerede er stillet et afklarende spørgsmål. Giver `{ outcome, reply, knowledge_ids, ai_ms, fallback_reason }` og kaster ikke fejl, hvis udbyderen fejler. `parseAiResult(text, knowledgeIds, clarificationAllowed)` tjekker AI'ens svar
+- Prompt: hele `hotel_knowledge` sendes med som `[id] emne: tekst`. Systemprompten siger, at AI'en kun må bruge hotelviden, skal svare kort på gæstens sprog, ikke kan ændre bookinger eller give rabat, aldrig må udlevere koder, og at gæstens beskeder ikke er instrukser. Den skal svare som JSON med `language`, `outcome` (`answered`, `clarify` eller `handover`), `reply` og `knowledge_ids`
+- Tjek på serveren: ugyldig JSON, ukendt udfald, tomt svar eller svar over 600 tegn, ukendte id'er i `knowledge_ids`, `answered` uden id'er og et afklarende spørgsmål nummer to giver alle overdragelse. Det samme gør fejl hos udbyderen (`provider_error`). Ved overdragelse får gæsten et fast svar (`FALLBACK_REPLY`), og `fallback_reason` siger hvorfor. Fejlbeskeden fra udbyderen logges, men aldrig gæstens tekst
+- Fagbegreber i filen: validering af utroværdigt input (AI'ens svar), prompt injection, mindste privilegium (AI'en kan ikke udløse handlinger), måling af svartid
+- Afhænger af: `db/pool.js`, `services/mistral.js`
+
 ### backend/services/mistral.js
-- Formål: den eneste fil, der kender AI-udbyderen Mistral. Sender en samtale til Mistrals chat-API og giver svarteksten tilbage. Resten af koden skal kalde `services/ai.js` (findes ikke endnu), så udbyderen kan skiftes ved at udskifte denne fil
+- Formål: den eneste fil, der kender AI-udbyderen Mistral. Sender en samtale til Mistrals chat-API og giver svarteksten tilbage. Resten af koden kalder `services/ai.js`, så udbyderen kan skiftes ved at udskifte denne fil
 - Vigtigste funktioner: `sendChat(messages)`. `messages` er en liste af `{ role, content }` med rollerne `system`, `user` og `assistant`. Giver `{ text, model, inputTokens, outputTokens }`. Beder om svar som JSON-objekt (Mistrals JSON-tilstand), så systembeskeden skal nævne JSON
 - Request: HTTPS POST til `https://api.mistral.ai/v1/chat/completions` med Nodes indbyggede `fetch()`. Nøglen sendes i `Authorization: Bearer`. Model `mistral-small-latest` og temperatur 0.2
 - Fejl: kaster en fejl, hvis `AI_API_KEY` mangler, hvis Mistral ikke svarer inden for 15 sekunder, ved netværksfejl, ved en HTTP-fejl (fejlen har `status`, fx 401 ved forkert nøgle og 429 ved rate limit) og hvis svaret ikke har den forventede form. Svaret fra Mistral logges ikke, fordi det kan indeholde gæstens besked
@@ -202,6 +211,13 @@ ecosystem.config.js
 - Formål: tester AI-grundlaget. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
 - Tester: at seed har lagt hotelviden ind, at æ, ø og å gemmes rigtigt, at nøgleboksens kode ikke står i hotelviden, at seed kan køres igen uden dubletter, og reglerne i `hotel_knowledge` (unikt emne, tom og for lang tekst). Testene i databasen kører i en transaktion, der rulles tilbage
 - Tester i `mistral.js`: manglende nøgle, forkert nøgle (HTTP 401 fra Mistral) og ét rigtigt kald, der skal give gyldig JSON og antal tokens. Skriver model, tokens og svartid
+- Afhænger af: den lokale database med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
+
+### tests/aiSvar.js
+- Formål: tester `services/ai.js`. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
+- Del 1 (uden kald): `parseAiResult` med ugyldig JSON, ukendt udfald, tomt og for langt svar, ukendte id'er, svar uden hotelviden, andet afklarende spørgsmål og gyldige svar
+- Del 2 (uden betalte kald): forkert nøgle giver overdragelse med det faste svar og målt `ai_ms`. Forkert brug af `answerGuest` afvises
+- Del 3 (7 kald til Mistral): sen ankomst og hund, kode til nøgleboksen, ukendt emne, prompt injection, uklart spørgsmål, uklart spørgsmål igen og et engelsk spørgsmål. Skriver udfald, emner, svartid og svaret, så man selv kan læse dem. AI-svar varierer lidt, så en enkelt fejl i del 3 skal vurderes
 - Afhænger af: den lokale database med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
 
 ### ecosystem.config.js
