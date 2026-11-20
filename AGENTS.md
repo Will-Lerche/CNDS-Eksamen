@@ -44,7 +44,7 @@ Er en opgave i modstrid med `specs.md`, så stop og spørg. Ret ikke i `specs.md
 - Database: PostgreSQL på en separat Droplet. Detaljer i `specs.md`
 - Koden bruger CommonJS (`require` og `module.exports`) som i øvelsestimerne. Brug ikke `import`, og sæt ikke `"type": "module"` i `package.json`
 - Node.js 22 eller nyere. Samme hovedversion lokalt og på serveren
-- **ÅBENT 3:** AI-udbyder
+- AI-udbyder: Mistral. API'et kaldes med Nodes indbyggede `fetch()` over HTTPS, ikke med Mistrals npm-pakke. Kun `services/mistral.js` kender Mistral. Resten af koden kalder `services/ai.js`, så udbyderen kan skiftes ved at udskifte én fil
 
 ### Godkendte npm-pakker
 | Pakke | Bruges til |
@@ -61,7 +61,7 @@ Er en opgave i modstrid med `specs.md`, så stop og spørg. Ret ikke i `specs.md
 
 Installeres globalt på serveren og ikke i `package.json`: `pm2` og `loadtest`.
 
-Bruges ikke: `cors` (frontend og API har samme origin) og `helmet` (sikkerhedsheaders sættes i Nginx). AI-udbyderens pakke tilføjes, når udbyderen er valgt.
+Bruges ikke: `cors` (frontend og API har samme origin), `helmet` (sikkerhedsheaders sættes i Nginx) og Mistrals npm-pakke (AI-udbyderen kaldes med `fetch()`).
 
 ## Mappestruktur
 Alle bruger denne struktur. Opret ikke nye mapper i roden uden at spørge. En fil, der ikke findes endnu, oprettes af den opgave, der skal bruge den.
@@ -84,7 +84,7 @@ CNDS-Eksamen/
 │   │   └── admin/             auth.js, conversations.js, stats.js, aiLog.js, knowledge.js
 │   ├── middleware/            requireAuth.js, requireRole.js, requireAdminHost.js, checkOrigin.js, rateLimits.js, errorHandler.js, notFound.js
 │   ├── validation/            Validering pr. område: auth.js, bookings.js, admin.js
-│   ├── services/              Logik og SQL: passwords.js, sessions.js, otp.js, bookings.js, notifications.js, conversations.js, ai.js, sms.js, email.js
+│   ├── services/              Logik og SQL: passwords.js, sessions.js, otp.js, bookings.js, notifications.js, conversations.js, ai.js, mistral.js, sms.js, email.js
 │   └── scripts/               Køres manuelt: migrate.js, seed.js, createStaff.js
 ├── frontend/
 │   ├── hotel/                 Sider til <domæne>: index.html, book.html, login.html, signup.html, verify.html, bookings.html, profile.html samt css/ og js/
