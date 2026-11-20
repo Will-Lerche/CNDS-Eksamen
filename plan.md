@@ -14,7 +14,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Gennemgå og vedtag designet: komponenter, endpoints, datamodel og login (afsnit 6 i `specs.md`)
 - [x] Vælg database og placering (PostgreSQL på egen Droplet, afsnit 5 i `specs.md`)
 - [ ] Vælg, om trafikken skal fordeles på flere app-Droplets (afsnit 8 i `specs.md`)
-- [ ] Vælg AI-udbyder
+- [x] Vælg AI-udbyder (Mistral, kaldt med `fetch()`)
 - [ ] Vælg domænenavn og hotellets navn
 - [ ] Afgør de åbne punkter i `AGENTS.md`
 - [ ] Test, om Dropletten kan sende e-mail gennem Mailgun på port 2525
@@ -43,7 +43,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Tilføj miljøvariablerne fra afsnit 6 i `specs.md` til `.env.example` (kun navne)
 
 ## Funktioner
-Login og engangskoder er tilføjet. Resten tilføjes, når `specs.md` er vedtaget. Én overskrift pr. funktion og én opgave pr. linje. Detaljerne står i afsnit 6 i `specs.md` under "Login, sessioner og engangskoder".
+Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` er vedtaget. Én overskrift pr. funktion og én opgave pr. linje. Detaljerne står i afsnit 6 i `specs.md` under "Login, sessioner og engangskoder".
 
 ### Login og sessioner (F8, F9)
 - [x] Databasetabeller: `users`, `sessions` og `otp_codes`
@@ -76,6 +76,19 @@ Login og engangskoder er tilføjet. Resten tilføjes, når `specs.md` er vedtage
 - [ ] `POST /api/auth/verify` til bekræftelse af e-mail og telefon
 - [ ] Engangskode, før AI'en udleverer bookingoplysninger i en SMS- eller e-mail-samtale (F3)
 - [ ] Test: forkert kode, udløbet kode, genbrugt kode, for mange forsøg og kode til et andet formål
+
+### AI-svar (F1, F2)
+- [ ] Databasetabel `hotel_knowledge`
+- [ ] Fiktiv hotelviden i `seed.sql`: 10-15 emner, fx check-in efter lukketid, nøgleboks, parkering og hund
+- [ ] `AI_API_KEY` i `config.js` og `.env.example`. Kræves først, når AI'en kaldes, så appen kan starte uden nøgle
+- [ ] `services/mistral.js`: sender beskederne til Mistrals chat-API med `fetch()` over HTTPS og en timeout. Den eneste fil, der kender Mistral
+- [ ] `services/ai.js`: bygger prompten ud fra hotelviden og samtalen, kalder `mistral.js` og returnerer `outcome`, `reply` og `knowledge_ids`
+- [ ] Systemprompt: svar kun ud fra hotelviden, ellers ét afklarende spørgsmål eller overdragelse til personalet
+- [ ] Tjek AI'ens JSON-svar på serveren. Ugyldigt svar, timeout eller fejl fra Mistral giver overdragelse
+- [ ] Falsk AI til loadtest og udvikling uden nøgle, så loadtesten ikke rammer Mistral
+- [ ] Testscript med 10-15 spørgsmål, der tjekker udfald, svartid og opdigtede oplysninger
+- [ ] Databasetabel `ai_actions`, og log hver AI-handling med udfald og svartider
+- [ ] Kobl AI'en på workeren: hent samtalen og hotelviden, og send svaret i samme kanal (kræver køen, samtaler og webhooks)
 
 ### Kan senere (F14, F15)
 - [ ] `POST /api/admin/auth/verify` og et kodetrin på admin-login: engangskode som anden faktor for personalet (F14)

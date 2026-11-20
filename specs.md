@@ -88,7 +88,7 @@ Rækkerne bygger på fagets liste over, hvad projektet kan indeholde, suppleret 
 | Logging og tests af oppetid: ping, traceroute og loadtest | a, b | Ja |
 | Load balancer | b | ÅBENT (afsnit 8). Databasen på egen Droplet gør det muligt at fordele trafikken på flere app-Droplets |
 | Tredjeparts-API: Twilio til SMS | a, b | Ja |
-| Tredjeparts-API: AI-model | b | Ja. Udbyder ÅBENT |
+| Tredjeparts-API: AI-model fra Mistral, kaldt med `fetch()` over HTTPS | b | Ja |
 | E-mail med Nodemailer (SMTP) gennem Mailgun på port 2525 | a | Ja |
 | Modtagelse af e-mail fra gæsten via Mailguns inbound route (webhook) | a, b | Ja |
 | Domæne fra name.com (GitHub Student Developer Pack) med DNS hos DigitalOcean | a | Ja. Navn ÅBENT |
@@ -302,7 +302,6 @@ Mål e (implementering) dækkes af selve appen. Mål f gælder rapporten.
 
 ## 8. Åbne spørgsmål
 - Load balancer: PM2 cluster på én app-Droplet, eller flere app-Droplets bag Nginx eller DigitalOceans load balancer? Med flere processer skal rate limiterens tællere deles, fx i PostgreSQL
-- Hvilken AI-udbyder?
 - Domænenavn og hotellets navn
 - Hvad betyder "SMS virker ikke": at Twilio-nummeret ikke kan bruges (afgøres af testen), eller at en enkelt SMS fejler, så svaret sendes som e-mail i stedet?
 - Kan Dropletten sende e-mail gennem Mailgun på port 2525? Skal testes
