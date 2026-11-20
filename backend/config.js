@@ -57,4 +57,10 @@ config.jwtSecret = readJwtSecret();
 // private IP i VPC'en. Brugeren er appens egen databasebruger, ikke postgres.
 config.databaseUrl = requireEnv('DATABASE_URL');
 
+// API-nøgle til AI-udbyderen (Mistral). Den er ikke påkrævet ved opstart, så
+// appen kan køre for alle i gruppen, også uden nøgle. Den tjekkes først, når
+// AI'en kaldes (i services/mistral.js). Nøglen sendes kun fra serveren til
+// Mistral over HTTPS og aldrig til browseren.
+config.aiApiKey = process.env.AI_API_KEY || null;
+
 module.exports = { config, requireEnv };
