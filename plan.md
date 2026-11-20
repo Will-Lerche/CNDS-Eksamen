@@ -82,9 +82,9 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [x] Fiktiv hotelviden i `seed.sql`: 10-15 emner, fx check-in efter lukketid, nøgleboks, parkering og hund
 - [x] `AI_API_KEY` i `config.js` og `.env.example`. Kræves først, når AI'en kaldes, så appen kan starte uden nøgle
 - [x] `services/mistral.js`: sender beskederne til Mistrals chat-API med `fetch()` over HTTPS og en timeout. Den eneste fil, der kender Mistral
-- [~] `services/ai.js`: bygger prompten ud fra hotelviden og samtalen, kalder `mistral.js` og returnerer `outcome`, `reply` og `knowledge_ids`
-- [~] Systemprompt: svar kun ud fra hotelviden, ellers ét afklarende spørgsmål eller overdragelse til personalet
-- [~] Tjek AI'ens JSON-svar på serveren. Ugyldigt svar, timeout eller fejl fra Mistral giver overdragelse
+- [x] `services/ai.js`: bygger prompten ud fra hotelviden og samtalen, kalder `mistral.js` og returnerer `outcome`, `reply` og `knowledge_ids`
+- [x] Systemprompt: svar kun ud fra hotelviden, ellers ét afklarende spørgsmål eller overdragelse til personalet
+- [x] Tjek AI'ens JSON-svar på serveren. Ugyldigt svar, timeout eller fejl fra Mistral giver overdragelse
 - [ ] Falsk AI til loadtest og udvikling uden nøgle, så loadtesten ikke rammer Mistral
 - [ ] Testscript med 10-15 spørgsmål, der tjekker udfald, svartid og opdigtede oplysninger
 - [ ] Databasetabel `ai_actions`, og log hver AI-handling med udfald og svartider
