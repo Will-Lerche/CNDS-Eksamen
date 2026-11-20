@@ -88,7 +88,7 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [ ] Falsk AI til loadtest og udvikling uden nøgle, så loadtesten ikke rammer Mistral
 - [ ] Testscript med 10-15 spørgsmål, der tjekker udfald, svartid og opdigtede oplysninger
 - [ ] Databasetabel `ai_actions`, og log hver AI-handling med udfald og svartider
-- [ ] Kobl AI'en på workeren: hent samtalen og hotelviden, og send svaret i samme kanal (kræver køen, samtaler og webhooks)
+- [ ] Kobl AI'en på workeren: hent samtalen, hotelviden og gæstens booking, når identiteten er bekræftet (F3), og send svaret i samme kanal (kræver køen, samtaler og webhooks)
 
 ### Kan senere (F14, F15)
 - [ ] `POST /api/admin/auth/verify` og et kodetrin på admin-login: engangskode som anden faktor for personalet (F14)
