@@ -13,7 +13,7 @@ Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på
 ## Overblik
 Kort beskrivelse af systemets dele, og hvordan de taler sammen.
 
-Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. Der er endnu ingen kø eller worker.
+Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. `backend/services/mistral.js` kan sende en samtale til Mistrals chat-API over HTTPS, men AI'en er endnu ikke koblet på noget flow. Der er endnu ingen kø eller worker.
 
 ## Kør projektet
 Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (kun navne, aldrig værdier).
@@ -21,12 +21,14 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - `npm install`, og kopiér `.env.example` til `.env`
 - PostgreSQL 16 lokalt: opret en database og en appbruger uden superbruger-rettigheder, og sæt `DATABASE_URL` i `.env`
 - `npm run migrate` opretter tabellerne. Det kan køres igen uden at gøre noget to gange
+- `npm run seed` indlæser fiktive testdata (indtil videre hotelviden). Det kan også køres igen uden dubletter
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor. `AI_API_KEY` (Mistral) er valgfri: appen starter uden, og nøglen kræves først, når AI'en kaldes
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
 - Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
+- Test AI-grundlaget: `node tests/aiGrundlag.js` (kræver den lokale database med migrationer og seed og `AI_API_KEY`)
 
 ### Lokal database (PostgreSQL 16)
 Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
@@ -60,16 +62,16 @@ Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
 ```
 backend/
   app.js, server.js, config.js, errors.js, cookies.js
-  db/          pool.js, migrations/001_create_users.sql, 002_create_sessions.sql, 003_create_otp_codes.sql
+  db/          pool.js, seed.sql, migrations/001_create_users.sql, 002_create_sessions.sql, 003_create_otp_codes.sql, 004_create_hotel_knowledge.sql
   middleware/  checkOrigin.js, errorHandler.js, notFound.js, requireAdminHost.js
   routes/      health.js
-  services/    passwords.js, sessions.js
+  services/    passwords.js, sessions.js, mistral.js
   validation/  auth.js
-  scripts/     measureBcrypt.js, migrate.js
+  scripts/     measureBcrypt.js, migrate.js, seed.js
 frontend/
   hotel/index.html, admin/login.html, shared/base.css
 tests/
-  loginGrundlag.js
+  loginGrundlag.js, aiGrundlag.js
 ecosystem.config.js
 ```
 
@@ -98,7 +100,7 @@ ecosystem.config.js
 
 ### backend/config.js
 - Formål: læser miljøvariabler fra `.env` ét sted
-- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl, jwtSecret, databaseUrl) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt
+- Vigtigste funktioner: `config` (nodeEnv, host, port, isProduction, publicUrl, adminUrl, jwtSecret, databaseUrl, aiApiKey) og `requireEnv(name)`, der stopper appen, hvis en påkrævet variabel mangler. `publicUrl` og `adminUrl` er påkrævede i produktion og har localhost-adresser som standard lokalt. `aiApiKey` er null, hvis `AI_API_KEY` mangler. Den tjekkes først i `services/mistral.js`
 - Fagbegreber i filen: beskyttelse af hemmeligheder (API-nøgler holdes ude af koden)
 - Afhænger af: `dotenv`
 
@@ -118,6 +120,7 @@ ecosystem.config.js
 - `001_create_users.sql`: tabellen `users`. Rolle `guest` eller `staff` (standard `guest`). E-mail er unik og skal være med små bogstaver. Telefon i E.164 eller tom. `password_hash` er en bcrypt-hash
 - `002_create_sessions.sql`: tabellen `sessions`. `id` er 32 hex-tegn (128 bit). `user_id` peger på `users` og slettes med brugeren. `expires_at` og `revoked_at`. Indeks på `user_id`
 - `003_create_otp_codes.sql`: tabellen `otp_codes`. Formål og kanal er begrænset til de tilladte værdier. `code_hash` skal være 64 hex-tegn (HMAC-SHA256), så koden ikke kan gemmes i klartekst. Forsøgstæller, `used_at` og indeks på (`user_id`, `purpose`)
+- `004_create_hotel_knowledge.sql`: tabellen `hotel_knowledge` med hotellets godkendte viden. Ét emne pr. række. `topic` er unik og 1-100 tegn. `text` er 1-2000 tegn, fordi hele teksten sendes med til AI'en. `updated_at`
 - Reglerne er CHECK, UNIQUE og fremmednøgler i databasen, så de gælder, selv hvis valideringen i koden springes over
 - En migration, der er merget til `main`, rettes aldrig. Ændringer laves i en ny fil med næste nummer
 
@@ -156,6 +159,14 @@ ecosystem.config.js
 - Fagbegreber i filen: JWT, HMAC-signatur (symmetrisk nøgle), session fixation, playback attack, parametriserede forespørgsler
 - Afhænger af: `jsonwebtoken`, `crypto`, `db/pool.js`, `config.js`, `errors.js`
 
+### backend/services/mistral.js
+- Formål: den eneste fil, der kender AI-udbyderen Mistral. Sender en samtale til Mistrals chat-API og giver svarteksten tilbage. Resten af koden skal kalde `services/ai.js` (findes ikke endnu), så udbyderen kan skiftes ved at udskifte denne fil
+- Vigtigste funktioner: `sendChat(messages)`. `messages` er en liste af `{ role, content }` med rollerne `system`, `user` og `assistant`. Giver `{ text, model, inputTokens, outputTokens }`. Beder om svar som JSON-objekt (Mistrals JSON-tilstand), så systembeskeden skal nævne JSON
+- Request: HTTPS POST til `https://api.mistral.ai/v1/chat/completions` med Nodes indbyggede `fetch()`. Nøglen sendes i `Authorization: Bearer`. Model `mistral-small-latest` og temperatur 0.2
+- Fejl: kaster en fejl, hvis `AI_API_KEY` mangler, hvis Mistral ikke svarer inden for 15 sekunder, ved netværksfejl, ved en HTTP-fejl (fejlen har `status`, fx 401 ved forkert nøgle og 429 ved rate limit) og hvis svaret ikke har den forventede form. Svaret fra Mistral logges ikke, fordi det kan indeholde gæstens besked
+- Fagbegreber i filen: HTTPS og TLS, REST-API med JSON, Bearer-token i Authorization-headeren, timeout, beskyttelse af API-nøgler (kun på serveren)
+- Afhænger af: `config.js`
+
 ### backend/validation/auth.js
 - Formål: validering på serveren af input til oprettelse, login og profil. Returnerer et rent objekt eller kaster `AppError(400)`
 - Vigtigste funktioner: `validateSignup` (name, email, phone, password, valgfrit sms_opt_in), `validateLogin` (email, password) og `validateProfileUpdate` (name, phone, sms_opt_in, mindst ét felt)
@@ -168,6 +179,13 @@ ecosystem.config.js
 - Fagbegreber i filen: transaktion (BEGIN, COMMIT og ROLLBACK)
 - Afhænger af: `db/pool.js`
 
+### backend/db/seed.sql og backend/scripts/seed.js
+- Formål: fiktive testdata. Indtil videre 13 emner med hotelviden, fx reception og åbningstider (kl. 7-22), check-in, nøgleboks ved sen ankomst, hund, parkering, morgenmad og hjælp om natten. Køres med `npm run seed` efter `npm run migrate`
+- `seed.sql` bruger `ON CONFLICT (topic) DO NOTHING`, så den kan køres igen uden dubletter og uden at overskrive tekst, som personalet har rettet
+- Koden til nøgleboksen står ikke i hotelviden. Den hører til den enkelte booking og må kun udleveres efter bekræftet identitet (F3)
+- `seed.js` kører hele `seed.sql` i én transaktion og skriver antallet af emner
+- Afhænger af: `db/pool.js`, tabellerne fra migrationerne
+
 ### backend/scripts/measureBcrypt.js
 - Formål: måler den gennemsnitlige tid for bcrypts hash og compare ved cost 10, 12 og 14 (5 runder hver). Køres manuelt, helst på app-Dropletten
 
@@ -179,6 +197,12 @@ ecosystem.config.js
 - Tester: bcrypt (salt, cost, rigtigt og forkert password, samme svartid ved ukendt e-mail), validering (mass assignment, passwordlængde, E.164), JWT (ændret rolle, `alg: none`, forkert nøgle, udløb), cookie-flag, Origin-tjek mod den rigtige app og sessioner og regler i databasen
 - Opretter en fiktiv testbruger (`testscript@example.com`) og sletter den igen
 - Afhænger af: den lokale database, `.env` og filerne i `backend/`
+
+### tests/aiGrundlag.js
+- Formål: tester AI-grundlaget. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
+- Tester: at seed har lagt hotelviden ind, at æ, ø og å gemmes rigtigt, at nøgleboksens kode ikke står i hotelviden, at seed kan køres igen uden dubletter, og reglerne i `hotel_knowledge` (unikt emne, tom og for lang tekst). Testene i databasen kører i en transaktion, der rulles tilbage
+- Tester i `mistral.js`: manglende nøgle, forkert nøgle (HTTP 401 fra Mistral) og ét rigtigt kald, der skal give gyldig JSON og antal tokens. Skriver model, tokens og svartid
+- Afhænger af: den lokale database med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
 
 ### ecosystem.config.js
 - Formål: PM2-opsætning på serveren. Starter `backend/server.js` med `NODE_ENV=production`
@@ -199,10 +223,15 @@ Hvad der gemmes, hvor det gemmes, og hvad der er krypteret eller hashet.
 | `users` | Gæster og personale: rolle, navn, e-mail, telefon, bekræftelsestidspunkter, SMS-valg | Password kun som bcrypt-hash |
 | `sessions` | Én række pr. login med udløb og evt. tilbagekaldelse | Session-id'et står også i den signerede JWT |
 | `otp_codes` | Engangskoder med formål, kanal, udløb, forsøg og brug | Kun HMAC-SHA256 af koden |
+| `hotel_knowledge` | Hotellets godkendte viden, ét emne pr. række. Fiktive data fra `seed.sql` | Ingen persondata eller koder |
 | `schema_migrations` | Hvilke migrationer der er kørt | |
 
 ## Eksterne tjenester
 Hvilke API'er appen kalder, hvad de bruges til, og hvordan fejl og ventetid håndteres.
+
+| Tjeneste | Bruges til | Protokol | Fejl og ventetid | Fil |
+|---|---|---|---|---|
+| Mistral (`api.mistral.ai`) | AI-svar til gæsten (endnu ikke koblet på et flow) | HTTPS POST med JSON. Nøglen fra `AI_API_KEY` i `Authorization: Bearer` | Timeout efter 15 sekunder. HTTP-fejl og netværksfejl kastes som fejl med forklaring | `backend/services/mistral.js` |
 
 ## Drift
 Server, proceshåndtering, domæne, certifikat, og hvordan en ny version lægges op.
