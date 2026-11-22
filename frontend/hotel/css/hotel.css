@@ -1,0 +1,344 @@
+/* Formål: udseendet på hotellets sider (hoveddomænet). Bygger oven på
+   variablerne og byggeklodserne i /shared/base.css. */
+
+/* ---------- Topbjælke ---------- */
+
+.topbar {
+  background: var(--color-text);
+  color: #d9ddd9;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.topbar .container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  padding: var(--space-5) 0 var(--space-4);
+}
+
+/* Asymmetrisk opdeling: teksten fylder mest, tegningen står skævt til højre */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.hero-lead {
+  max-width: 34rem;
+  font-size: 1.15rem;
+  color: var(--color-text-muted);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Skarp grøn blok med en sandfarvet blok forskudt bagved */
+.hero-art {
+  position: relative;
+  margin: 0 18px 18px 0;
+}
+
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 18px -18px -18px 18px;
+  background: var(--color-sand);
+}
+
+.hero-art svg {
+  position: relative;
+  width: 100%;
+  padding: var(--space-4) var(--space-3) 0;
+  background: var(--color-accent);
+}
+
+.art-line {
+  fill: none;
+  stroke: #cfe0d7;
+  stroke-width: 2;
+}
+
+.art-window-lit {
+  fill: var(--color-sand);
+}
+
+.art-door {
+  fill: #cfe0d7;
+}
+
+.art-keybox {
+  fill: var(--color-sand);
+}
+
+.art-moon {
+  fill: #f2e6cf;
+}
+
+/* ---------- Nøgletal ---------- */
+
+.facts {
+  border-top: 1px solid var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.facts-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Lodrette streger mellem tallene i stedet for kort */
+.facts-row > div {
+  padding: var(--space-3) var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+
+.facts-row > div:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.fact-value {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.fact-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Sektionsoverskrifter ---------- */
+
+.section-head {
+  margin-bottom: var(--space-4);
+}
+
+/* ---------- Værelser ---------- */
+
+.rooms {
+  padding-top: var(--space-4);
+}
+
+.room-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-text);
+}
+
+/* Hver række: nummer, beskrivelse og pris, adskilt af en tynd streg */
+.room {
+  display: grid;
+  grid-template-columns: 4rem 1fr auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.room-number {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  color: var(--color-sand);
+}
+
+.room-info h3 {
+  font-size: 1.6rem;
+  margin-bottom: var(--space-1);
+}
+
+.room-info p {
+  margin-bottom: var(--space-1);
+  max-width: 36rem;
+}
+
+.room-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.9rem;
+}
+
+.room-price {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.room-price strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.room-price span {
+  font-size: 0.85rem;
+}
+
+/* ---------- Sen ankomst ---------- */
+
+.late {
+  margin-top: var(--space-4);
+  padding: var(--space-5) 0;
+  background: var(--color-accent);
+  color: #e6eee9;
+}
+
+.late h2 {
+  color: #ffffff;
+}
+
+.late .eyebrow {
+  color: var(--color-sand);
+}
+
+.late-text p {
+  max-width: 32rem;
+}
+
+.contact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.contact-list dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-sand);
+}
+
+.contact-list dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  color: #ffffff;
+}
+
+/* ---------- Praktisk ---------- */
+
+.practical {
+  padding-top: var(--space-5);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4) var(--space-3);
+  margin: 0;
+}
+
+.info-grid > div {
+  padding-top: var(--space-2);
+  border-top: 2px solid var(--color-text);
+}
+
+.info-grid dt {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  margin-bottom: var(--space-1);
+}
+
+.info-grid dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Sidefod ---------- */
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-3);
+}
+
+.footer-grid p {
+  margin: var(--space-1) 0 0;
+}
+
+/* ---------- Mobil og tablet ---------- */
+
+@media (max-width: 860px) {
+  .hero {
+    padding-top: var(--space-4);
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-art {
+    max-width: 320px;
+  }
+
+  .facts-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .facts-row > div:nth-child(3) {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar .container span:last-child {
+    display: none;
+  }
+
+  .site-nav {
+    gap: var(--space-2);
+    font-size: 0.95rem;
+  }
+
+  /* Prisen flytter ned under beskrivelsen på smalle skærme */
+  .room {
+    grid-template-columns: 2.5rem 1fr;
+  }
+
+  .room-price {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .room-price strong {
+    display: inline;
+    font-size: 1.3rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
