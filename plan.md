@@ -69,7 +69,7 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [ ] Test med curl og Burp Suite: ændret JWT, udløbet JWT, genbrug efter logout, cookie-flag, cookie sendt til forkert host, CSRF fra fremmed `Origin`, for mange loginforsøg
 
 ### Engangskoder (F3, F8)
-- [ ] Generér en 6-cifret kode med `crypto.randomInt`
+- [~] Generér en 6-cifret kode med `crypto.randomInt`
 - [ ] Gem HMAC-SHA256 af koden med formål, kanal, udløb og forsøgstæller, og ugyldiggør ældre koder til samme formål
 - [ ] Verificér med `crypto.timingSafeEqual`, højst 5 forsøg, og markér koden som brugt
 - [ ] Send koden gennem notifikationskøen som SMS eller e-mail (kræver køen fra notifikationer)

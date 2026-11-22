@@ -28,6 +28,7 @@ Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (
 - Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor. `AI_API_KEY` (Mistral) er valgfri: appen starter uden, og nøglen kræves først, når AI'en kaldes
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
 - Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
+- Test engangskode-grundlaget: `node tests/otpGrundlag.js` (kræver ingen database)
 - Test AI-grundlaget: `node tests/aiGrundlag.js` (kræver den lokale database med migrationer og seed og `AI_API_KEY`)
 - Test AI-assistentens svar: `node tests/aiSvar.js` (samme krav)
 
@@ -153,6 +154,12 @@ ecosystem.config.js
 - Fagbegreber i filen: hashing med salt, work factor, timing-angreb, ikke-blokerende I/O (threadpool)
 - Afhænger af: `bcrypt`, `crypto`
 
+### backend/services/otp.js
+- Formål: engangskoder (OTP) til bekræftelse af e-mail/telefon, personale-login og bookingadgang (F3, F8)
+- Vigtigste funktioner: `generateOneTimeCode()` giver en 6-cifret streng fra `crypto.randomInt(0, 1000000)`, hvor foranstillede nuller bevares. Resten af filen (HMAC-SHA256, udløb og forsøgstæller) tilføjes i senere opgaver
+- Fagbegreber i filen: kryptografisk sikker tilfældighed, engangskode
+- Afhænger af: `crypto`
+
 ### backend/services/sessions.js
 - Formål: session-id og JWT til sessioner samt oprettelse, opslag og tilbagekaldelse i tabellen `sessions`
 - Vigtigste funktioner: `createSessionId()` giver 128 tilfældige bit som hex. `signSessionToken(userId, role, sessionId)` laver en JWT (HS256) med `sub`, `role`, `sid`, `iat` og `exp`. `verifySessionToken(token)` giver `{ userId, role, sessionId }` eller kaster `AppError(401)`. Kun HS256 accepteres, så tokens med `alg: none` afvises. `getSessionLifetimeSeconds(role)`: gæst 2 timer, personale 8 timer
@@ -206,6 +213,11 @@ ecosystem.config.js
 - Tester: bcrypt (salt, cost, rigtigt og forkert password, samme svartid ved ukendt e-mail), validering (mass assignment, passwordlængde, E.164), JWT (ændret rolle, `alg: none`, forkert nøgle, udløb), cookie-flag, Origin-tjek mod den rigtige app og sessioner og regler i databasen
 - Opretter en fiktiv testbruger (`testscript@example.com`) og sletter den igen
 - Afhænger af: den lokale database, `.env` og filerne i `backend/`
+
+### tests/otpGrundlag.js
+- Formål: tester grundlaget for engangskoder, før der findes ruter. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
+- Tester: at 1000 koder alle er præcis 6 cifre, at nuller bevares i starten af koden, og at 500 koder giver mange forskellige værdier
+- Afhænger af: ingen database, kun `backend/services/otp.js`
 
 ### tests/aiGrundlag.js
 - Formål: tester AI-grundlaget. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
