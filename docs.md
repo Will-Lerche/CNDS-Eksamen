@@ -71,7 +71,7 @@ backend/
   validation/  auth.js
   scripts/     measureBcrypt.js, migrate.js, seed.js
 frontend/
-  hotel/index.html, admin/login.html, shared/base.css
+  hotel/index.html, hotel/css/hotel.css, admin/login.html, shared/base.css
 tests/
   loginGrundlag.js, aiGrundlag.js, aiSvar.js
 ecosystem.config.js
@@ -236,7 +236,10 @@ ecosystem.config.js
 - Formål: PM2-opsætning på serveren. Starter `backend/server.js` med `NODE_ENV=production`
 
 ### frontend/
-- `hotel/index.html` og `admin/login.html` er pladsholdere. `shared/base.css` er fælles grundstil
+- `shared/base.css`: fælles grundstil for begge hosts. Farver, skrifttyper og afstande står som variabler i `:root`. Indeholder byggeklodserne `.button`, `.button-outline`, `.card`, `.tag`, `.eyebrow`, `.container`, `.site-header` og `.site-footer`. Skarpe kanter som udgangspunkt. Bruger kun systemets skrifttyper, så siderne ikke henter filer fra andre servere
+- `hotel/index.html`: hotellets forside. Statisk HTML uden JavaScript: topbjælke, sidehoved med menu, hero med en SVG-tegning af facaden, nøgletal, tre værelsestyper, en sektion om sen ankomst og kontakt efter lukketid, praktisk information og sidefod. "Hotellet" er en pladsholder for hotellets navn. Værelser og priser er fiktive og skrevet direkte i HTML'en. Praktisk information bygger på hotelviden i `backend/db/seed.sql`. Links til `book.html` og `login.html` giver 404, indtil de sider findes
+- `hotel/css/hotel.css`: udseendet på hotellets sider, oven på `base.css`. Serveres på `/css/hotel.css`
+- `admin/login.html` er en pladsholder
 
 ## Endpoints
 | Metode | Sti | Hvad den gør | Kræver login | Fil |

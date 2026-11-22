@@ -1,4 +1,40 @@
-/* Formål: fælles grundstil for hotellets sider og admin. */
+/* Formål: fælles grundstil for hotellets sider og admin.
+   Farver, skrifttyper og afstande står som variabler (custom properties) i :root,
+   så hele udseendet kan justeres ét sted. Herunder ligger de byggeklodser, som
+   alle sider genbruger: knapper, kort, sidehoved og sidefod.
+   Der bruges ingen eksterne skrifttyper eller CSS-biblioteker. Siden henter
+   derfor kun filer fra vores egen server, hvilket gør en streng
+   Content-Security-Policy i Nginx enkel. */
+
+:root {
+  /* Farver: varm, lys baggrund og en dyb grøn accent (nordisk stil) */
+  --color-bg: #f7f4ee;
+  --color-surface: #ffffff;
+  --color-surface-muted: #efeae1;
+  --color-text: #1f2a26;
+  --color-text-muted: #5c6661;
+  --color-border: #e0d9cc;
+  --color-accent: #1f4d3f;
+  --color-accent-hover: #173b30;
+  --color-accent-soft: #dfe8e3;
+  --color-sand: #c9a97a;
+
+  /* Skrifttyper: systemets egne skrifter, så intet hentes udefra */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+
+  /* Afstande, hjørner og skygger */
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2.5rem;
+  --space-5: 4rem;
+  /* Skarpe kanter som udgangspunkt. Kun små elementer (felter, mærkater) får en
+     let afrunding, så siden ikke ser ud som en standardskabelon. */
+  --radius: 0;
+  --radius-small: 3px;
+  --page-width: 1120px;
+}
 
 *,
 *::before,
@@ -8,14 +44,194 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
-  color: #1f2933;
-  background: #f7f7f5;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 
 main {
-  max-width: 960px;
+  max-width: var(--page-width);
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: var(--space-4) var(--space-2);
+}
+
+/* ---------- Typografi ---------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 var(--space-2);
+}
+
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); }
+h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); }
+h3 { font-size: 1.25rem; }
+
+p {
+  margin: 0 0 var(--space-2);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Lille overskrift over en sektion, fx "Værelser" */
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Lille mærkat, fx "Hund tilladt". Et af de få steder med let afrunding */
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-small);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* Synlig fokusramme, så siden kan bruges med tastaturet */
+:focus-visible {
+  outline: 3px solid var(--color-sand);
+  outline-offset: 2px;
+}
+
+/* ---------- Layout ---------- */
+
+/* Holder indholdet i en fast bredde midt på siden */
+.container {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 0 var(--space-2);
+}
+
+/* ---------- Knapper ---------- */
+
+.button {
+  display: inline-block;
+  padding: 0.75rem 1.4rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.button:hover {
+  background: var(--color-accent-hover);
+}
+
+/* Sekundær knap: kun kant, ingen fyldfarve */
+.button-outline {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.button-outline:hover {
+  background: var(--color-accent-soft);
+}
+
+/* ---------- Kort ---------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-body {
+  padding: var(--space-3);
+}
+
+/* ---------- Sidehoved ---------- */
+
+.site-header {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header .container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+/* Hotellets navn som logo */
+.brand {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.site-nav a {
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.site-nav a:hover {
+  color: var(--color-accent);
+}
+
+.site-nav .button {
+  color: #ffffff;
+  padding: 0.5rem 1.1rem;
+}
+
+/* ---------- Sidefod ---------- */
+
+.site-footer {
+  margin-top: var(--space-5);
+  padding: var(--space-4) 0;
+  background: var(--color-accent);
+  color: #e6eee9;
+  font-size: 0.95rem;
+}
+
+.site-footer a {
+  color: #ffffff;
+}
+
+.site-footer .brand {
+  color: #ffffff;
 }

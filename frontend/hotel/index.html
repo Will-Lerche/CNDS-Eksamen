@@ -3,14 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hotel</title>
+  <title>Hotellet</title>
+  <meta name="description" content="Et lille hotel tæt på Hovedbanegården. Book værelse, og skriv til os døgnet rundt.">
   <link rel="stylesheet" href="/shared/base.css">
+  <link rel="stylesheet" href="/css/hotel.css">
 </head>
 <body>
-  <!-- Forside for hotellets webapp. Pladsholder, indtil forsiden bygges. -->
+  <!-- Forside for hotellets webapp (kulissen, der står i stedet for hotellets eget
+       bookingsystem). Siden er statisk: alt indhold er skrevet i HTML.
+       "Hotellet" er en pladsholder, indtil gruppen har valgt hotellets navn (ÅBENT i plan.md).
+       Værelser og priser er fiktive og står her midlertidigt. Når tabellen med
+       værelser findes, skal de hentes fra API'et med fetch(), så prisen altid
+       kommer fra serveren. -->
+
+  <div class="topbar">
+    <div class="container">
+      <span>Reception kl. 7–22</span>
+      <span>Skriv til os døgnet rundt på SMS eller e-mail</span>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="/">Hotellet</a>
+      <nav class="site-nav" aria-label="Hovedmenu">
+        <a href="#vaerelser">Værelser</a>
+        <a href="#praktisk">Praktisk</a>
+        <a href="/login.html">Log ind</a>
+        <a class="button" href="/book.html">Book værelse</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero: hotellet i én sætning og de to vigtigste handlinger -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-text">
+        <span class="eyebrow">10 min. fra Hovedbanegården</span>
+        <h1>Et roligt sted at lande,<br>også efter kl. 22.</h1>
+        <p class="hero-lead">
+          Et lille hotel med 24 værelser midt i byen. Ankommer du sent,
+          checker du selv ind via nøgleboksen – og har du spørgsmål om natten,
+          får du svar med det samme.
+        </p>
+        <div class="hero-actions">
+          <a class="button" href="/book.html">Book værelse</a>
+          <a class="button button-outline" href="#sen-ankomst">Sen ankomst</a>
+        </div>
+      </div>
+
+      <!-- Tegning af hotellets facade om natten. Ren SVG i HTML'en, så siden
+           ikke skal hente billeder. aria-hidden, fordi den kun er pynt. -->
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 400 480" role="presentation">
+          <circle cx="335" cy="62" r="16" class="art-moon" />
+          <polyline points="56,118 200,44 344,118" class="art-line" />
+          <rect x="72" y="118" width="256" height="362" class="art-line" />
+          <rect x="102" y="148" width="44" height="58" class="art-line" />
+          <rect x="178" y="148" width="44" height="58" class="art-line" />
+          <rect x="254" y="148" width="44" height="58" class="art-window-lit" />
+          <rect x="102" y="232" width="44" height="58" class="art-window-lit" />
+          <rect x="178" y="232" width="44" height="58" class="art-line" />
+          <rect x="254" y="232" width="44" height="58" class="art-line" />
+          <rect x="102" y="316" width="44" height="58" class="art-line" />
+          <rect x="178" y="316" width="44" height="58" class="art-line" />
+          <rect x="254" y="316" width="44" height="58" class="art-line" />
+          <rect x="178" y="400" width="44" height="80" class="art-door" />
+          <rect x="146" y="424" width="14" height="18" class="art-keybox" />
+          <line x1="0" y1="480" x2="400" y2="480" class="art-line" />
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- Nøgletal i én linje, så de vigtigste tider kan ses uden at scrolle -->
+  <section class="facts" aria-label="Nøgletal">
+    <div class="container facts-row">
+      <div><span class="fact-value">15.00</span><span class="fact-label">Check-in</span></div>
+      <div><span class="fact-value">11.00</span><span class="fact-label">Check-ud</span></div>
+      <div><span class="fact-value">7–22</span><span class="fact-label">Reception</span></div>
+      <div><span class="fact-value">24/7</span><span class="fact-label">Svar på SMS og e-mail</span></div>
+    </div>
+  </section>
+
   <main>
-    <h1>Hotellet</h1>
-    <p>Siden er under opbygning.</p>
+    <!-- Værelsestyper som en nummereret liste i stedet for ens kort -->
+    <section id="vaerelser" class="rooms">
+      <div class="section-head">
+        <span class="eyebrow">Værelser</span>
+        <h2>Tre slags værelser.<br>Alle røgfri.</h2>
+      </div>
+
+      <ol class="room-list">
+        <li class="room">
+          <span class="room-number">01</span>
+          <div class="room-info">
+            <h3>Enkeltværelse</h3>
+            <p class="muted">Til den, der rejser alene. Skrivebord, regnbruser og udsigt til gården.</p>
+            <p class="room-meta">1 gæst · 14 m²</p>
+          </div>
+          <p class="room-price">fra <strong>795 kr.</strong><span>pr. nat</span></p>
+        </li>
+        <li class="room">
+          <span class="room-number">02</span>
+          <div class="room-info">
+            <h3>Dobbeltværelse</h3>
+            <p class="muted">Dobbeltseng eller to enkeltsenge. Plads til en hund, hvis I tager den med.</p>
+            <p class="room-meta">2 gæster · 20 m² <span class="tag">Hund tilladt</span></p>
+          </div>
+          <p class="room-price">fra <strong>1.095 kr.</strong><span>pr. nat</span></p>
+        </li>
+        <li class="room">
+          <span class="room-number">03</span>
+          <div class="room-info">
+            <h3>Familieværelse</h3>
+            <p class="muted">Dobbeltseng og køjeseng i ét stort rum. Tæt på trappen til gården.</p>
+            <p class="room-meta">Op til 4 gæster · 28 m² <span class="tag">Hund tilladt</span></p>
+          </div>
+          <p class="room-price">fra <strong>1.495 kr.</strong><span>pr. nat</span></p>
+        </li>
+      </ol>
+    </section>
   </main>
+
+  <!-- Sen ankomst: fortæller gæsten, hvad der sker, når de skriver efter lukketid -->
+  <section id="sen-ankomst" class="late">
+    <div class="container">
+      <div class="late-text">
+        <span class="eyebrow">Sen ankomst</span>
+        <h2>Receptionen er lukket.<br>Du får svar alligevel.</h2>
+        <p>
+          Skriv en SMS eller en e-mail til hotellet, også midt om natten.
+          Vores digitale assistent svarer ud fra hotellets egne oplysninger
+          om check-in, parkering, hund og meget mere.
+        </p>
+        <p>
+          Spørger du om din egen booking, fx koden til nøgleboksen, beder vi
+          dig først bekræfte, at det er dig, med en engangskode. Kan
+          assistenten ikke svare, giver den beskeden videre til personalet.
+        </p>
+        <!-- Pladsholdere: nummer og adresse fastlægges, når Twilio-nummer og domæne er valgt -->
+        <dl class="contact-list">
+          <div><dt>SMS</dt><dd>+45 00 00 00 00</dd></div>
+          <div><dt>E-mail</dt><dd>kontakt@hotellet.dk</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- Praktisk information. Teksterne bygger på hotelviden i backend/db/seed.sql -->
+  <section id="praktisk" class="practical">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">Praktisk</span>
+        <h2>Godt at vide</h2>
+      </div>
+
+      <dl class="info-grid">
+        <div>
+          <dt>Parkering</dt>
+          <dd>12 pladser i gården bag hotellet. 100 kr. pr. døgn. To pladser har ladestander.</dd>
+        </div>
+        <div>
+          <dt>Hund</dt>
+          <dd>150 kr. pr. nat og højst én hund pr. værelse. Angiv hunden, når du booker.</dd>
+        </div>
+        <div>
+          <dt>Morgenmad</dt>
+          <dd>Kl. 7–10 på hverdage og 7.30–11 i weekenden. 145 kr. pr. person.</dd>
+        </div>
+        <div>
+          <dt>Internet</dt>
+          <dd>Gratis på hele hotellet. Koden ligger ved nøglekortet.</dd>
+        </div>
+        <div>
+          <dt>Bagage</dt>
+          <dd>Opbevares gratis før check-in og efter check-ud, mens receptionen har åbent.</dd>
+        </div>
+        <div>
+          <dt>Afbestilling</dt>
+          <dd>Gratis indtil 48 timer før ankomst. Det gør du selv under "Mine bookinger".</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <a class="brand" href="/">Hotellet</a>
+        <p>Eksempelgade 1, København<br>Fiktivt hotel til et eksamensprojekt.</p>
+      </div>
+      <div>
+        <p><strong>Reception</strong><br>Hver dag kl. 7–22</p>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
