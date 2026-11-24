@@ -13,7 +13,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Gennemgå og vedtag de funktionelle krav (afsnit 4 i `specs.md`)
 - [ ] Gennemgå og vedtag designet: komponenter, endpoints, datamodel og login (afsnit 6 i `specs.md`)
 - [x] Vælg database og placering (PostgreSQL på egen Droplet, afsnit 5 i `specs.md`)
-- [ ] Vælg, om trafikken skal fordeles på flere app-Droplets (afsnit 8 i `specs.md`)
+- [x] Vælg load balancing: Nginx på egen Droplet foran to app-Droplets (afsnit 6 i `specs.md`)
 - [x] Vælg AI-udbyder (Mistral, kaldt med `fetch()`)
 - [ ] Vælg domænenavn og hotellets navn
 - [ ] Afgør de åbne punkter i `AGENTS.md`
@@ -33,14 +33,23 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [x] Firewall (ufw) på database-Dropletten: port 5432 kun fra app-Dropletten
 - [x] Test forbindelsen fra app-Dropletten, og at port 5432 ikke kan nås udefra
 - [ ] Registrér domænet hos name.com, og peg det på DigitalOceans nameservers
-- [ ] Opret DNS-records hos DigitalOcean: A for domænet, `www` og `admin`
+- [ ] Opret DNS-records hos DigitalOcean: A for domænet, `www` og `admin`, der peger på LB-Dropletten
 - [ ] Opret Mailgun-konto (EU-region), og tilføj et mail-subdomæne med MX-, SPF- og DKIM-records
 - [ ] Opret Mailguns inbound route, der sender indgående e-mail til `/webhooks/mailgun/inbound`
-- [ ] Nginx: server blocks for domænet og `admin`, og HTTP omdirigeres til HTTPS
-- [ ] Certifikat fra Let's Encrypt for domænet, `www` og `admin`
-- [ ] Sikkerhedsheaders i Nginx (HSTS, Content-Security-Policy, nosniff, Referrer-Policy)
-- [ ] Firewall: ufw på app-Dropletten åbner kun 22, 80 og 443. Node lytter kun på `127.0.0.1`
+- [ ] Nginx på LB-Dropletten: server blocks for domænet og `admin`, og HTTP omdirigeres til HTTPS
+- [ ] Certifikat fra Let's Encrypt på LB-Dropletten for domænet, `www` og `admin`
+- [ ] Sikkerhedsheaders i Nginx på LB-Dropletten (HSTS, Content-Security-Policy, nosniff, Referrer-Policy)
+- [ ] Firewall: ufw på LB-Dropletten åbner kun 22, 80 og 443
 - [ ] Tilføj miljøvariablerne fra afsnit 6 i `specs.md` til `.env.example` (kun navne)
+
+## Load balancing
+- [ ] Opret LB-Dropletten og app-Droplet 2 i samme VPC, og installér appen på app-Droplet 2
+- [ ] Nginx på LB-Dropletten: `upstream` med begge app-Droplets
+- [ ] `HOST` og `TRUST_PROXY` i `config.js`, og ufw på app-Dropletterne
+- [ ] Rate limiterens tællere i PostgreSQL
+- [ ] `SKIP LOCKED` i workeren
+- [ ] Headeren `X-Instance` ud fra `INSTANCE_NAME`
+- [ ] Loadtest med én og to app-Droplets, og failover-test
 
 ## Funktioner
 Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` er vedtaget. Én overskrift pr. funktion og én opgave pr. linje. Detaljerne står i afsnit 6 i `specs.md` under "Login, sessioner og engangskoder".
