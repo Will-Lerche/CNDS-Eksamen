@@ -69,9 +69,9 @@ Alle bruger denne struktur. Opret ikke nye mapper i roden uden at spørge. En fi
 ```
 CNDS-Eksamen/
 ├── package.json
-├── ecosystem.config.js        PM2: starter server.js og worker.js som to processer
+├── ecosystem.config.js        PM2: starter server.js to gange (port 3000 og 3001) og worker.js én gang
 ├── backend/
-│   ├── server.js              Starter Express-appen på HOST:PORT (127.0.0.1 lokalt, privat IP på app-Dropletterne)
+│   ├── server.js              Starter Express-appen på 127.0.0.1:PORT
 │   ├── app.js                 Opretter Express-appen: middleware, statiske filer og ruter. Kalder ikke listen
 │   ├── worker.js              Egen proces: læser køen og sender SMS, e-mail og AI-svar
 │   ├── config.js              Læser og tjekker alle miljøvariabler. Ingen anden fil læser process.env

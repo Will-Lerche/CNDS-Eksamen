@@ -80,13 +80,13 @@ Rækkerne bygger på fagets liste over, hvad projektet kan indeholde, suppleret 
 | Express API med endpoints for HTTP-metoder og JSON | a, b | Ja |
 | Brugergrænseflade i HTML, CSS og JS, der bruger `fetch()` | a, b | Ja. Egen CSS, intet CSS-framework |
 | Asynkron programmering på server og klient | b | Ja |
-| Database: PostgreSQL på en separat Droplet, som kun kan nås fra app-Dropletterne over DigitalOceans private netværk (VPC) | b, d | Ja |
+| Database: PostgreSQL på en separat Droplet, som kun kan nås fra app-Dropletten over DigitalOceans private netværk (VPC) | b, d | Ja |
 | Netværksprotokoller i brug: HTTP, DNS, SMTP, TCP og TLS | a | Ja |
 | Middleware til cookies, sikkerhed og responstid | b, d | Ja (afsnit 6) |
 | Rate limiting (Øvelsestime 7) | b, d | Ja |
 | Web caching i Nginx (Øvelsestime 6) | a, b | Ja, kun for offentligt indhold (afsnit 6) |
 | Logging og tests af oppetid: ping, traceroute og loadtest | a, b | Ja |
-| Load balancer: Nginx på egen Droplet fordeler trafikken på to app-Droplets over det private netværk (VPC) | a, b | Ja (afsnit 6) |
+| Load balancer: Nginx på app-Dropletten fordeler trafikken på to instanser af Node-appen | a, b | Ja (afsnit 6) |
 | Tredjeparts-API: Twilio til SMS | a, b | Ja |
 | Tredjeparts-API: AI-model fra Mistral, kaldt med `fetch()` over HTTPS | b | Ja |
 | E-mail med Nodemailer (SMTP) gennem Mailgun på port 2525 | a | Ja |
@@ -113,8 +113,8 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
                                                                                                        ─> Mailgun SMTP (port 2525)
                                                                                                        ─> AI-udbyder (HTTPS)
 ```
-- Nginx på LB-Dropletten har to server blocks: `<domæne>` (og `www`) til hotellets webapp og `admin.<domæne>` til personalet. Begge sender videre til de to app-Droplets
-- Databasen ligger på sin egen Droplet i samme region og VPC som app-Dropletterne. Hver Node-proces forbinder over det private netværk med en connection pool (`pg.Pool`)
+- Nginx har to server blocks: `<domæne>` (og `www`) til hotellets webapp og `admin.<domæne>` til personalet. Begge sender videre til de to instanser af Node-appen på `127.0.0.1`
+- Databasen ligger på sin egen Droplet i samme region og VPC som app-Dropletten. Hver Node-proces forbinder over det private netværk med en connection pool (`pg.Pool`)
 - Admin-ruterne (`/api/admin/*` og admin-siderne) svarer kun, når requesten kommer ind via admin-subdomænet
 - Webhooks fra Twilio og Mailgun gemmer beskeden og svarer med det samme. Svaret til gæsten laves af en worker, der læser en kø i databasen (casens referencearkitektur)
 - Bekræftelser og engangskoder sendes på samme måde: endpointet lægger beskeden i køen, og workeren sender den. En booking fejler ikke, fordi Twilio eller Mailgun er nede
@@ -124,10 +124,13 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
 **Flow efter lukketid:** SMS eller e-mail ind → webhook (tjek signatur, gem beskeden med unik nøgle) → `200` → worker finder hotelviden og evt. booking → AI-svar, afklarende spørgsmål eller overdragelse → svar i samme kanal → logges i `ai_actions`.
 
 ### Load balancing
-- Nginx på egen Droplet fordeler requests med round robin på to ens app-Droplets over det private netværk. En app-Droplet, der ikke svarer, springes over (`max_fails`)
-- Appen gemmer ingen tilstand i hukommelsen. Sessioner, engangskoder, køen og rate limiterens tællere ligger i PostgreSQL, så begge app-Droplets kan tage enhver request
-- Workeren kører på begge app-Droplets og henter beskeder med `SELECT ... FOR UPDATE SKIP LOCKED`, så samme besked ikke sendes to gange
-- Hver app-Droplet sætter headeren `X-Instance` ud fra `INSTANCE_NAME`, så man ved loadtest kan se, hvordan requests fordeles
+- Nginx og to instanser af Node-appen kører på samme app-Droplet. PM2 starter `server.js` to gange med hver sin port (3000 og 3001)
+- Nginx fordeler requests med round robin i en `upstream` med `127.0.0.1:3000` og `127.0.0.1:3001`. En instans, der ikke svarer, springes over (`max_fails`)
+- Node kører JavaScript i én tråd, så én instans bruger én CPU-kerne. To instanser giver kun mere ydelse, hvis Dropletten har mindst 2 vCPU'er (`nproc`)
+- Appen gemmer ingen tilstand i hukommelsen. Sessioner, engangskoder, køen og rate limiterens tællere ligger i PostgreSQL, så begge instanser kan tage enhver request
+- Workeren kører som én proces, så samme besked ikke sendes to gange
+- Hver instans sætter headeren `X-Instance` ud fra `INSTANCE_NAME`, så man ved loadtest kan se, hvordan requests fordeles
+- Dropletten er stadig et single point of failure. Går den ned, er appen nede. Flere app-Droplets bag en load balancer er næste skridt, hvis appen skal tåle det
 
 ### Sider
 | Host | Side | Indhold |
@@ -246,7 +249,7 @@ Login bygges af gruppen selv med teknikkerne fra Øvelsestime 3, 10 og 11 og 11.
 | `POST /api/auth/verify` og `/api/admin/auth/verify` | 5 forsøg pr. kode (i databasen) |
 | Resten af API'et | Global grænse, fx 100 pr. minut pr. IP |
 
-Express skal have `trust proxy` sat til load balancerens private IP. Ellers ser alle requests ud til at komme fra load balanceren, og grænsen rammer alle brugere på én gang. Tællerne gemmes i PostgreSQL med en lille store til `express-rate-limit`, så de deles mellem app-Dropletterne. Talte hver app-Droplet i sin egen hukommelse, fik en angriber dobbelt så mange forsøg.
+Express skal have `trust proxy` sat til Nginx på `127.0.0.1` (`loopback`). Ellers ser alle requests ud til at komme fra `127.0.0.1`, og grænsen rammer alle brugere på én gang. Tællerne gemmes i PostgreSQL med en lille store til `express-rate-limit`, så de deles mellem de to instanser. Talte hver instans i sin egen hukommelse, fik en angriber dobbelt så mange forsøg.
 
 **Personale**
 - Personalebrugere oprettes med et script på serveren. Der er ingen offentlig oprettelse af personale
@@ -270,21 +273,21 @@ Validering i browseren er kun for brugervenlighedens skyld. Alle regler håndhæ
 ### Effektivitet og drift
 - Al I/O er asynkron med `async`/`await`. Intet synkront arbejde i request-håndteringen, der blokerer event loopet (Øvelsestime 1)
 - Webhooks og bookinger svarer hurtigt. SMS, e-mail og AI-kald sker i workeren (kø i databasen)
-- Nginx som reverse proxy og load balancer foran to app-Droplets, og PM2 holder appen og workeren kørende på hver af dem (Øvelsestime 2)
+- Nginx som reverse proxy og load balancer foran to instanser af Node-appen, og PM2 holder dem og workeren kørende (Øvelsestime 2)
 - Web caching i Nginx (Øvelsestime 6) kun for offentligt indhold: statiske filer og forsiden. Svar med persondata, cookies eller fra admin-subdomænet får `Cache-Control: no-store` og caches aldrig
 - Logging med et `correlation_id`, der følger en henvendelse fra webhook til svar. Passwords, engangskoder, tokens og cookies logges aldrig
 - Forbindelser til databasen genbruges via en connection pool, så der ikke oprettes en ny TCP-forbindelse og et nyt login til PostgreSQL ved hver request
 - Svartid måles for hvert led: webhook, AI, Twilio/Mailgun og levering
-- Loadtest-scripts mod login, ledighed og booking (Øvelsestime 7), kørt med én og med to app-Droplets
-- Failover-test: appen stoppes på én app-Droplet under en loadtest, og siden skal stadig svare
+- Loadtest-scripts mod login, ledighed og booking (Øvelsestime 7), kørt med én og med to instanser
+- Failover-test: én instans stoppes med `pm2 stop` under en loadtest, og siden skal stadig svare
 - Indeks på kolonner, der slås op ofte: `users.email`, `sessions.id`, `bookings.user_id`, `messages.external_id`
 
 ### Sikkerhed i drift
-- HTTPS med certifikat fra Let's Encrypt (Certbot på LB-Dropletten) for `<domæne>`, `www` og `admin`. HTTP omdirigeres til HTTPS (Øvelsestime 10)
-- Sikkerhedsheaders sættes i Nginx på LB-Dropletten: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff` og `Referrer-Policy`
-- Firewall (ufw, 11. Lektion): LB-Dropletten åbner kun 22, 80 og 443. App-Dropletterne åbner kun 22 og app-porten (`PORT`) fra LB-Droplettens private IP. Node lytter på app-Droplettens private IP (`HOST`), så appen ikke kan nås uden om load balanceren
+- HTTPS med certifikat fra Let's Encrypt (Certbot) for `<domæne>`, `www` og `admin`. HTTP omdirigeres til HTTPS (Øvelsestime 10)
+- Sikkerhedsheaders sættes i Nginx: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff` og `Referrer-Policy`
+- Firewall: ufw på app-Dropletten åbner kun 22, 80 og 443. Begge instanser af Node-appen lytter kun på `127.0.0.1`, så de ikke kan nås uden om Nginx (11. Lektion)
 - SSH til Droplets med password. Projektet er en demo af webappen, så selve Droplets hærdes ikke yderligere
-- Database-Dropletten: PostgreSQL lytter kun på den private IP. ufw åbner kun for SSH og for port 5432 fra app-Dropletterne. `pg_hba.conf` tillader kun app-Dropletternes private IP'er med `scram-sha-256`
+- Database-Dropletten: PostgreSQL lytter kun på den private IP. ufw åbner kun for SSH og for port 5432 fra app-Dropletten. `pg_hba.conf` tillader kun app-Droplettens private IP med `scram-sha-256`
 - Appen bruger en databasebruger med kun de rettigheder, den har brug for, ikke superbrugeren `postgres`
 - Backup med `pg_dump` før større ændringer
 - Webhooks: Twilios signatur (`X-Twilio-Signature`) og Mailguns signatur (HMAC af timestamp og token) tjekkes. Signaturen beregnes ud fra den offentlige URL, ikke den interne bag Nginx. Mailgun-webhooks med et gammelt timestamp eller et token, der allerede står i `webhook_nonces`, afvises (genafspilning)
@@ -293,15 +296,15 @@ Validering i browseren er kun for brugervenlighedens skyld. Alle regler håndhæ
 - AI'en får kun hotelviden og data om den gæst, der har bekræftet sin identitet. Svaret fra AI'en kan ikke selv udløse handlinger som ændring af bookinger
 
 ### Miljøvariabler (kun navne)
-`NODE_ENV`, `HOST`, `PORT`, `TRUST_PROXY`, `INSTANCE_NAME`, `PUBLIC_URL`, `ADMIN_URL`, `JWT_SECRET`, `OTP_SECRET`, `DATA_ENCRYPTION_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `MAILGUN_SMTP_HOST`, `MAILGUN_SMTP_PORT`, `MAILGUN_SMTP_USER`, `MAILGUN_SMTP_PASSWORD`, `MAILGUN_WEBHOOK_SIGNING_KEY`, `MAIL_FROM`, `STAFF_NOTIFY_EMAIL`, `DATABASE_URL`, `AI_API_KEY`.
+`NODE_ENV`, `PORT`, `INSTANCE_NAME`, `PUBLIC_URL`, `ADMIN_URL`, `JWT_SECRET`, `OTP_SECRET`, `DATA_ENCRYPTION_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `MAILGUN_SMTP_HOST`, `MAILGUN_SMTP_PORT`, `MAILGUN_SMTP_USER`, `MAILGUN_SMTP_PASSWORD`, `MAILGUN_WEBHOOK_SIGNING_KEY`, `MAIL_FROM`, `STAFF_NOTIFY_EMAIL`, `DATABASE_URL`, `AI_API_KEY`.
 
 ## 7. Kobling til læringsmål
 Hvert læringsmål skal kunne vises i appen og undersøges med en test eller måling.
 
 | Mål | Emne | Hvor i appen | Test eller måling |
 |---|---|---|---|
-| a | Internettets opbygning, 5-lagsmodellen, HTTP og TCP/IP | DNS-records for domæne, admin og mail. HTTP-API og webhooks. SMTP til Mailgun. TLS foran det hele | `dig` på records. Wireshark af TCP- og TLS-handshake. ping og traceroute til LB-Dropletten |
-| b | Udvikling af netværksapplikationer, asynkron programmering og effektivitet | Kø og worker. Asynkron bcrypt. Web caching. Rate limiting. Load balancing på to app-Droplets | Loadtest med og uden kø og cache og med én og to app-Droplets. Failover, når én app-Droplet stoppes. Svartid pr. led. Svartid ved forskellig bcrypt-cost |
+| a | Internettets opbygning, 5-lagsmodellen, HTTP og TCP/IP | DNS-records for domæne, admin og mail. HTTP-API og webhooks. SMTP til Mailgun. TLS foran det hele | `dig` på records. Wireshark af TCP- og TLS-handshake. ping og traceroute til Dropletten |
+| b | Udvikling af netværksapplikationer, asynkron programmering og effektivitet | Kø og worker. Asynkron bcrypt. Web caching. Rate limiting. Load balancing på to instanser af appen | Loadtest med og uden kø og cache og med én og to instanser. Failover, når én instans stoppes. Svartid pr. led. Svartid ved forskellig bcrypt-cost |
 | c | Kryptografi: symmetrisk, asymmetrisk og hashing | bcrypt, HMAC af engangskoder, signeret JWT, AES af følsomme felter, TLS-certifikat | Ændret JWT afvises. Samme password giver forskellige hashes. Certifikatet i browseren og Wireshark |
 | d | Sikkerhed ved design: angreb, arkitektur, kryptering og nøgleudveksling | Cookie-flag, sessioner der kan tilbagekaldes, admin-subdomæne, validering på serveren, webhook-signaturer, firewall | Burp Suite: ændret cookie, genbrug efter logout, anden gæsts booking, pris sendt fra klienten, for mange loginforsøg |
 
