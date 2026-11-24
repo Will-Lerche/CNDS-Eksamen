@@ -71,7 +71,7 @@ CNDS-Eksamen/
 ├── package.json
 ├── ecosystem.config.js        PM2: starter server.js og worker.js som to processer
 ├── backend/
-│   ├── server.js              Starter Express-appen på 127.0.0.1:PORT
+│   ├── server.js              Starter Express-appen på HOST:PORT (127.0.0.1 lokalt, privat IP på app-Dropletterne)
 │   ├── app.js                 Opretter Express-appen: middleware, statiske filer og ruter. Kalder ikke listen
 │   ├── worker.js              Egen proces: læser køen og sender SMS, e-mail og AI-svar
 │   ├── config.js              Læser og tjekker alle miljøvariabler. Ingen anden fil læser process.env
