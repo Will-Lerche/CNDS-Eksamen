@@ -32,6 +32,7 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [x] `pg_hba.conf`: tillad kun app-Droplettens private IP med `scram-sha-256`
 - [x] Firewall (ufw) på database-Dropletten: port 5432 kun fra app-Dropletten
 - [x] Test forbindelsen fra app-Dropletten, og at port 5432 ikke kan nås udefra
+- [x] Opret den fælles udviklingsdatabase `opally_dev` på database-Dropletten, og test SSH-tunnelen
 - [ ] Registrér domænet hos name.com, og peg det på DigitalOceans nameservers
 - [ ] Opret DNS-records hos DigitalOcean: A for domænet, `www` og `admin`
 - [ ] Opret Mailgun-konto (EU-region), og tilføj et mail-subdomæne med MX-, SPF- og DKIM-records

@@ -30,8 +30,8 @@ Er en opgave i modstrid med `specs.md`, så stop og spørg. Ret ikke i `specs.md
 ## Kør og test
 - Installér pakker: `npm install`
 - Kopiér `.env.example` til `.env`, og udfyld værdierne
-- Kræver PostgreSQL 16 på egen computer. Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET` i `.env`. Opsætningen står i `docs.md` under "Lokal database". Derefter: `npm run migrate` og `npm run seed` (fiktive testdata)
-- **Til AI-værktøjet:** Tjek ved første opgave, om personen har PostgreSQL 16 og `DATABASE_URL` og `JWT_SECRET` i `.env`. Stopper appen med "Miljøvariablen ... mangler i .env", så forklar personen hvorfor, og hjælp med opsætningen i `docs.md`, før du går videre. Vis aldrig værdierne fra `.env`
+- Gruppen deler udviklingsdatabasen `opally_dev` på database-Dropletten. Den nås gennem en SSH-tunnel over app-Dropletten, så PostgreSQL skal ikke installeres lokalt. Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET` i `.env`. Opsætningen står i `docs.md` under "Udviklingsdatabase via SSH-tunnel". Databasen er fælles: kør kun `npm run migrate` med migrationer fra `main`, eller når gruppen ved det
+- **Til AI-værktøjet:** Tjek ved første opgave, om personen har `DATABASE_URL` og `JWT_SECRET` i `.env`. Stopper appen med "Miljøvariablen ... mangler i .env" eller `ECONNREFUSED 127.0.0.1:5433` (tunnelen er ikke åben), så forklar personen hvorfor, og hjælp med opsætningen i `docs.md`, før du går videre. Vis aldrig værdierne fra `.env`
 - Start lokalt: `npm run dev` (genstarter, når en fil ændres) eller `npm start`
 - Lokalt kører hotellet på `http://localhost:3000` og admin på `http://admin.localhost:3000`
 - Hurtig test: `curl http://localhost:3000/api/health`. I Windows PowerShell skrives `curl.exe`, fordi `curl` dér er et alias for `Invoke-WebRequest`

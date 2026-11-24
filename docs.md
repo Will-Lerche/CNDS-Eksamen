@@ -19,45 +19,42 @@ Kort beskrivelse af systemets dele, og hvordan de taler sammen.
 Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (kun navne, aldrig værdier).
 
 - `npm install`, og kopiér `.env.example` til `.env`
-- PostgreSQL 16 lokalt: opret en database og en appbruger uden superbruger-rettigheder, og sæt `DATABASE_URL` i `.env`
+- Udviklingsdatabasen: åbn SSH-tunnelen, og sæt `DATABASE_URL` i `.env`. Se "Udviklingsdatabase via SSH-tunnel" nedenfor
 - `npm run migrate` opretter tabellerne. Det kan køres igen uden at gøre noget to gange
 - `npm run seed` indlæser fiktive testdata (indtil videre hotelviden). Det kan også køres igen uden dubletter
 - `npm run dev` eller `npm start`
 - Hotellet: `http://localhost:3000`. Admin: `http://admin.localhost:3000`
 - Test: `curl http://localhost:3000/api/health` (i Windows PowerShell: `curl.exe`)
-- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Lokal database" nedenfor. `AI_API_KEY` (Mistral) er valgfri: appen starter uden, og nøglen kræves først, når AI'en kaldes
+- Miljøvariabler: `NODE_ENV` (standard `development`), `PORT` (standard `3000`), `PUBLIC_URL` og `ADMIN_URL` (standard `http://localhost:PORT` og `http://admin.localhost:PORT`). I produktion skal `PUBLIC_URL` og `ADMIN_URL` være sat, ellers starter appen ikke. `JWT_SECRET` (mindst 32 tegn) og `DATABASE_URL` er påkrævet overalt, også lokalt. Se "Udviklingsdatabase via SSH-tunnel" nedenfor. `AI_API_KEY` (Mistral) er valgfri: appen starter uden, og nøglen kræves først, når AI'en kaldes
 - Mål bcrypts svartid: `node backend/scripts/measureBcrypt.js`
-- Test login-grundlaget: `node tests/loginGrundlag.js` (kræver den lokale database)
+- Test login-grundlaget: `node tests/loginGrundlag.js` (kræver udviklingsdatabasen)
 - Test engangskode-grundlaget: `node tests/otpGrundlag.js` (kræver ingen database)
-- Test AI-grundlaget: `node tests/aiGrundlag.js` (kræver den lokale database med migrationer og seed og `AI_API_KEY`)
+- Test AI-grundlaget: `node tests/aiGrundlag.js` (kræver udviklingsdatabasen med migrationer og seed og `AI_API_KEY`)
 - Test AI-assistentens svar: `node tests/aiSvar.js` (samme krav)
 
-### Lokal database (PostgreSQL 16)
-Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Hver i gruppen har sin egen database på sin egen computer, så testdata ikke blandes. Databasen på database-Dropletten kan kun nås fra app-Dropletten. Brug version 16 ligesom på Dropletten.
+### Udviklingsdatabase via SSH-tunnel
+Appen starter ikke uden `DATABASE_URL` og `JWT_SECRET`. Gruppen deler én udviklingsdatabase, `opally_dev`, på database-Dropletten med fiktive testdata. Ingen skal installere PostgreSQL lokalt. Database-Dropletten kan kun nås fra app-Dropletten, så forbindelsen går gennem en SSH-tunnel over app-Dropletten:
 
-1. Installér PostgreSQL 16
-   - Windows: `winget install --id PostgreSQL.PostgreSQL.16 --exact`. Vælg et password til superbrugeren `postgres`, når installationen spørger
-   - macOS: `brew install postgresql@16` og derefter `brew services start postgresql@16`
-2. Lav et tilfældigt password til appbrugeren: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
-3. Åbn `psql` som superbruger
-   - Windows (PowerShell): `& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h 127.0.0.1`
-   - macOS: `$(brew --prefix postgresql@16)/bin/psql postgres`
-4. Opret appbrugeren og databasen. Ved `\password` indsættes passwordet fra trin 2 to gange:
-   ```sql
-   CREATE ROLE opally_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
-   \password opally_app
-   CREATE DATABASE opally ENCODING 'UTF8' TEMPLATE template0;
-   REVOKE ALL ON DATABASE opally FROM PUBLIC;
-   GRANT CONNECT, TEMPORARY ON DATABASE opally TO opally_app;
-   \c opally
-   GRANT USAGE, CREATE ON SCHEMA public TO opally_app;
-   \q
+```
+Din computer 127.0.0.1:5433 ─ SSH (krypteret, port 22) ─> app-Dropletten ─ VPC ─> 10.106.0.2:5432 (PostgreSQL)
+```
+
+PostgreSQL ser forbindelsen komme fra app-Droplettens private IP, så firewallen og `pg_hba.conf` skal ikke åbnes udadtil. Tunnelen kræver kun `ssh`, som er indbygget i Windows og macOS. `npm run migrate` og `npm run seed` bruger npm-pakken `pg`, så `psql` er heller ikke nødvendig.
+
+1. Åbn tunnelen i et terminalvindue, og lad det stå åbent, mens du udvikler. Log ind med samme SSH-bruger og password som på app-Dropletten:
    ```
-5. Skriv i `.env`:
-   - `DATABASE_URL=postgresql://opally_app:<password fra trin 2>@127.0.0.1:5432/opally`
+   ssh -N -L 5433:10.106.0.2:5432 <bruger>@<app-Droplettens offentlige IP>
+   ```
+   `-L` sender lokal port 5433 videre til `10.106.0.2:5432` set fra app-Dropletten. `-N` betyder, at der ikke åbnes en shell. Port 5433 bruges, så den ikke støder sammen med en lokal PostgreSQL på 5432
+2. Skriv i `.env`:
+   - `DATABASE_URL=postgresql://opally_dev:<password>@127.0.0.1:5433/opally_dev`. Passwordet deles i gruppen og står aldrig i git
    - `JWT_SECRET=<resultatet af node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">`
-6. Opret tabellerne: `npm run migrate`. Svaret skal være, at migrationerne er kørt
-7. Start appen med `npm run dev`
+3. Start appen med `npm run dev`
+
+Databasen er fælles, så:
+- `npm run migrate` køres kun med migrationer, der er merget til `main`, eller når resten af gruppen ved det. En migration på en branch ændrer tabellerne for alle
+- `npm run seed` kan køres igen uden dubletter
+- Stopper appen med `ECONNREFUSED 127.0.0.1:5433`, er tunnelen ikke åben
 
 ## Mappestruktur
 Strukturen er beskrevet i `AGENTS.md`. Indtil videre findes:
@@ -212,7 +209,7 @@ ecosystem.config.js
 - Formål: tester login-grundlaget uden login-ruter. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
 - Tester: bcrypt (salt, cost, rigtigt og forkert password, samme svartid ved ukendt e-mail), validering (mass assignment, passwordlængde, E.164), JWT (ændret rolle, `alg: none`, forkert nøgle, udløb), cookie-flag, Origin-tjek mod den rigtige app og sessioner og regler i databasen
 - Opretter en fiktiv testbruger (`testscript@example.com`) og sletter den igen
-- Afhænger af: den lokale database, `.env` og filerne i `backend/`
+- Afhænger af: udviklingsdatabasen, `.env` og filerne i `backend/`
 
 ### tests/otpGrundlag.js
 - Formål: tester grundlaget for engangskoder, før der findes ruter. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
@@ -223,14 +220,14 @@ ecosystem.config.js
 - Formål: tester AI-grundlaget. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
 - Tester: at seed har lagt hotelviden ind, at æ, ø og å gemmes rigtigt, at nøgleboksens kode ikke står i hotelviden, at seed kan køres igen uden dubletter, og reglerne i `hotel_knowledge` (unikt emne, tom og for lang tekst). Testene i databasen kører i en transaktion, der rulles tilbage
 - Tester i `mistral.js`: manglende nøgle, forkert nøgle (HTTP 401 fra Mistral) og ét rigtigt kald, der skal give gyldig JSON og antal tokens. Skriver model, tokens og svartid
-- Afhænger af: den lokale database med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
+- Afhænger af: udviklingsdatabasen med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
 
 ### tests/aiSvar.js
 - Formål: tester `services/ai.js`. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
 - Del 1 (uden kald): `parseAiResult` med ugyldig JSON, ukendt udfald, tomt og for langt svar, ukendte id'er, svar uden hotelviden, andet afklarende spørgsmål og gyldige svar
 - Del 2 (uden betalte kald): forkert nøgle giver overdragelse med det faste svar og målt `ai_ms`. Forkert brug af `answerGuest` afvises
 - Del 3 (7 kald til Mistral): sen ankomst og hund, kode til nøgleboksen, ukendt emne, prompt injection, uklart spørgsmål, uklart spørgsmål igen og et engelsk spørgsmål. Skriver udfald, emner, svartid og svaret, så man selv kan læse dem. AI-svar varierer lidt, så en enkelt fejl i del 3 skal vurderes
-- Afhænger af: den lokale database med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
+- Afhænger af: udviklingsdatabasen med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
 
 ### ecosystem.config.js
 - Formål: PM2-opsætning på serveren. Starter `backend/server.js` med `NODE_ENV=production`
@@ -283,6 +280,8 @@ To Droplets hos DigitalOcean i London med Ubuntu 24.04. De ligger i samme VPC (p
 - Firewall (ufw): tillader SSH og port 5432/tcp fra `10.106.0.3`. Al anden indgående trafik afvises
 - Testet: `psql` fra app-Dropletten forbinder som `opally_app` til `10.106.0.2`. `Test-NetConnection` til database-Droplettens offentlige IP på port 5432 fejler
 - Tabellerne er ikke oprettet endnu. Det sker med `npm run migrate` på app-Dropletten, når koden er lagt op
+- Udviklingsdatabasen `opally_dev` med brugeren `opally_dev` er adskilt fra `opally`. Brugeren har de samme begrænsede rettigheder som `opally_app`, men kun i `opally_dev`. `pg_hba.conf`: `host opally_dev opally_dev 10.106.0.3/32 scram-sha-256`. Gruppen når den gennem SSH-tunnelen (se "Udviklingsdatabase via SSH-tunnel")
+- Testet: gennem tunnelen er forbindelsen logget ind som `opally_dev` i `opally_dev`, og PostgreSQL ser klienten som `10.106.0.3`. `npm run migrate` (4 migrationer), `npm run seed` (13 emner) og `node tests/loginGrundlag.js` er kørt mod den
 
 ## Brug af AI i projektet
 - Værktøjer i gruppen: Claude, Gemini og ChatGPT
