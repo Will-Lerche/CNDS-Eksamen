@@ -19,6 +19,10 @@ Status på arbejdet. Reglerne for filen står i `AGENTS.md`.
 - [ ] Afgør de åbne punkter i `AGENTS.md`
 - [ ] Test, om Dropletten kan sende e-mail gennem Mailgun på port 2525
 - [ ] Test, om Twilio-nummeret kan modtage SMS fra danske mobiler
+- [ ] Afgør, hvor receptionens åbningstid står, så systemet kan afgøre, om der er åbent (afsnit 8 i `specs.md`)
+- [ ] Afgør, hvilken booking der gælder, når afsenderen hører til flere bookinger (afsnit 8 i `specs.md`)
+- [ ] Afgør, om betroede kontaktoplysninger kan tilføjes eller fjernes efter bookingen (afsnit 8 i `specs.md`)
+- [ ] Afgør prioriteten for F16 og F17 (afsnit 8 i `specs.md`)
 
 ## Opsætning
 - [x] Opret GitHub-repo, og giv alle fire adgang
@@ -78,13 +82,13 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [ ] Login-side på admin-subdomænet
 - [ ] Test med curl og Burp Suite: ændret JWT, udløbet JWT, genbrug efter logout, cookie-flag, cookie sendt til forkert host, CSRF fra fremmed `Origin`, for mange loginforsøg
 
-### Engangskoder (F3, F8)
+### Engangskoder (F8, F17)
 - [~] Generér en 6-cifret kode med `crypto.randomInt`
 - [ ] Gem HMAC-SHA256 af koden med formål, kanal, udløb og forsøgstæller, og ugyldiggør ældre koder til samme formål
 - [ ] Verificér med `crypto.timingSafeEqual`, højst 5 forsøg, og markér koden som brugt
 - [ ] Send koden gennem notifikationskøen som SMS eller e-mail (kræver køen fra notifikationer)
 - [ ] `POST /api/auth/verify` til bekræftelse af e-mail og telefon
-- [ ] Engangskode, før AI'en udleverer bookingoplysninger i en SMS- eller e-mail-samtale (F3)
+- [ ] Ny migration: formålet `verify_trusted_contact` i stedet for `booking_access` i `otp_codes`
 - [ ] Test: forkert kode, udløbet kode, genbrugt kode, for mange forsøg og kode til et andet formål
 
 ### AI-svar (F1, F2)
@@ -98,7 +102,20 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [ ] Falsk AI til loadtest og udvikling uden nøgle, så loadtesten ikke rammer Mistral
 - [ ] Testscript med 10-15 spørgsmål, der tjekker udfald, svartid og opdigtede oplysninger
 - [ ] Databasetabel `ai_actions`, og log hver AI-handling med udfald og svartider
-- [ ] Kobl AI'en på workeren: hent samtalen, hotelviden og gæstens booking, når identiteten er bekræftet (F3), og send svaret i samme kanal (kræver køen, samtaler og webhooks)
+- [ ] Systemprompt og tjek af AI'ens svar: bookingoplysninger til en genkendt afsender og udfaldet `propose_change` med kun ankomsttid, hund og bemærkning (F3, F16)
+- [ ] Kobl AI'en på workeren: hent samtalen, hotelviden og gæstens booking, når afsenderen er en bekræftet kontaktoplysning (F3), og send svaret i samme kanal (kræver køen, samtaler og webhooks)
+
+### Ændringer via samtale og betroede kontaktoplysninger (F16, F17)
+Detaljerne står i afsnit 6 i `specs.md` under "Identitet og ændringer i SMS- og e-mail-samtaler".
+- [ ] Databasetabeller: `trusted_contacts` og `pending_changes`
+- [ ] Find afsenderen blandt bekræftede kontaktoplysninger på profilen og i `trusted_contacts` (F3)
+- [ ] `POST /api/bookings/:id/trusted-contacts` og `POST /api/bookings/:id/trusted-contacts/:contact_id/verify` med engangskode til den betroede kontaktoplysning (F17)
+- [ ] E-mail til gæsten, når en betroet kontaktoplysning tilføjes (F17)
+- [ ] Betroede telefonnumre og e-mailadresser på siden Book (F17)
+- [ ] Opret en ventende ændring med token (128 bit, kun hash gemmes, udløb efter 15 minutter, kan bruges én gang), og send linket til den bekræftede kontaktoplysning (F16)
+- [ ] `POST /api/booking-changes/preview` og `POST /api/booking-changes/confirm`, der validerer igen og udfører ændringen i én transaktion (F16)
+- [ ] Siden Bekræft ændring (`confirm-change.html`), der læser tokenet efter `#` (F16)
+- [ ] Test: forfalsket afsender, ukendt afsender, ændring af et andet felt, genbrugt og udløbet link, og at linket ikke ændrer noget, før der trykkes Bekræft
 
 ### Kan senere (F14, F15)
 - [ ] `POST /api/admin/auth/verify` og et kodetrin på admin-login: engangskode som anden faktor for personalet (F14)

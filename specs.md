@@ -21,11 +21,11 @@ Opally er en platform, som hotellet integrerer med sine egne systemer. Projektet
 | Del | Rolle | Indhold |
 |---|---|---|
 | Hotellets webapp | Kulisse: står i stedet for hotellets eget bookingsystem | Gæsten opretter en profil, logger ind, booker, ændrer og afbestiller. Bekræftelser på e-mail og valgfrit SMS. Kun det, der skal til for at vise løsningen |
-| Opally-delen | Kernen: det, rapporten analyserer | AI svarer efter lukketid ud fra godkendt hotelviden og bookingdata. Ved tvivl overdrages samtalen til personalet, som logger ind på admin-subdomænet |
+| Opally-delen | Kernen: det, rapporten analyserer | AI svarer altid først, både i og uden for receptionens åbningstid, ud fra godkendt hotelviden og bookingdata. AI kan ændre ankomsttid, hund og bemærkning på en booking, når gæsten bekræfter ændringen via et link. Ved tvivl overdrages samtalen til personalet, som logger ind på admin-subdomænet |
 
-Bekræftelses-SMS'en sendes fra det samme Twilio-nummer, som gæsten senere skriver til efter lukketid. Telefonnummeret på profilen kobler samtalen til gæstens booking.
+Bekræftelses-SMS'en sendes fra det samme Twilio-nummer, som gæsten senere skriver til. Et bekræftet telefonnummer eller en bekræftet e-mailadresse kobler samtalen til gæstens booking: gæstens egen på profilen eller en betroet kontaktoplysning på bookingen (F17).
 
-Løsningen i korte træk: gæsten booker på hotellets webapp og får en bekræftelse. Skriver gæsten efter lukketid, svarer AI ud fra godkendt hotelviden, og ved tvivl overdrages samtalen til personalets dashboard med en e-mail til nattevagten.
+Løsningen i korte træk: gæsten booker på hotellets webapp og får en bekræftelse. Skriver gæsten til hotellet, svarer AI først ud fra godkendt hotelviden. Ved tvivl overdrages samtalen til personalets dashboard, og uden for åbningstid får nattevagten en e-mail.
 
 ## 2. Rammer fra faget
 - Applikationen udvikles med Node.js
@@ -50,14 +50,15 @@ Casens råd er én kanal og ét behov.
 ### Opally-delen
 | ID | Krav | Prioritet | Læringsmål |
 |---|---|---|---|
-| F1 | Gæsten kan skrive til hotellet via SMS eller e-mail og få et svar i samme kanal ud fra godkendt hotelviden, fx check-in efter lukketid, nøgleboks, parkering og hund | Skal | a, b |
-| F2 | Findes svaret ikke i hotelviden, stiller systemet ét afklarende spørgsmål eller fortæller gæsten, at personalet overtager | Skal | b |
-| F3 | Gæsten bekræfter sin identitet med en engangskode, før oplysninger om en booking udleveres i en SMS- eller e-mail-samtale, fx en dørkode. Koden sendes til en bekræftet kontaktoplysning på gæstens profil | Skal | c, d |
+| F1 | Gæsten kan skrive til hotellet via SMS eller e-mail og få et svar i samme kanal ud fra godkendt hotelviden, fx check-in efter lukketid, nøgleboks, parkering og hund. AI svarer først, både i og uden for receptionens åbningstid | Skal | a, b |
+| F2 | Er spørgsmålet uklart, stiller AI ét afklarende spørgsmål. Findes svaret ikke tydeligt i hotelviden, eller er spørgsmålet stadig uklart, overdrages samtalen til personalet, og gæsten får besked om det. Det gælder både i og uden for åbningstid | Skal | b |
+| F3 | Gæsten kan få oplysninger om sin booking, fx en dørkode, i en SMS- eller e-mail-samtale, når afsenderen er et bekræftet telefonnummer eller en bekræftet e-mailadresse på bookingen (gæstens egen eller en betroet, F17). Svaret sendes kun til den bekræftede kontaktoplysning | Skal | c, d |
+| F16 | Gæsten kan i en SMS- eller e-mail-samtale bede AI om at ændre ankomsttid, hund og bemærkning på sin booking. Ændringen udføres først, når gæsten har bekræftet den via et link, der sendes til den bekræftede kontaktoplysning | **ÅBENT** | c, d |
 | F4 | Personalet kan logge ind på admin-subdomænet og se indbakken: åbne samtaler, status, et resumé og om svaret er leveret | Skal | a, b, d |
 | F5 | Personalet kan overtage en samtale og svare. Svaret sendes til gæsten i samme kanal | Skal | a, b |
 | F6 | Personalet får en e-mail, når en samtale overdrages uden for åbningstid | Bør | a |
 | F7 | Personalet kan redigere hotellets godkendte viden | Bør | a, b |
-| F13 | Personalet kan se statistik over bookinger, ændringer og afbestillinger og en log over, hvad AI'en har gjort uden for åbningstid: spørgsmål, svar, udfald og svartider | Skal | b |
+| F13 | Personalet kan se statistik over bookinger, ændringer og afbestillinger og en log over, hvad AI'en har gjort: spørgsmål, svar, udfald, foreslåede og bekræftede ændringer og svartider | Skal | b |
 | F14 | Personalets login kræver password og en engangskode (to faktorer) | Kan | c, d |
 
 ### Hotellets webapp
@@ -68,6 +69,7 @@ Casens råd er én kanal og ét behov.
 | F10 | Gæsten kan booke et værelse: datoer, værelsestype, antal gæster, forventet ankomsttid, hund og en bemærkning. Ledighed og pris beregnes på serveren | Skal | a, b, d |
 | F11 | Gæsten kan se, ændre og afbestille sine egne bookinger og ingen andres | Skal | b, d |
 | F12 | Gæsten får en bekræftelse på e-mail, og som SMS hvis gæsten har valgt det, når en booking oprettes, ændres eller afbestilles | Skal | a, b |
+| F17 | Når gæsten booker, kan gæsten tilføje betroede telefonnumre og e-mailadresser, fx til en anden telefon eller et familiemedlem. Hver betroet kontaktoplysning bekræftes med en engangskode og har derefter samme rettigheder i samtaler som gæstens egne (F3, F16). Gæsten får en e-mail, når en betroet kontaktoplysning tilføjes | **ÅBENT** | c, d |
 | F15 | Gæsten kan nulstille et glemt password med en engangskode på e-mail | Kan | c, d |
 
 ## 5. Tekniske valg
@@ -121,7 +123,9 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
 
 **Flow ved booking:** `POST /api/bookings` → validering → én transaktion (tjek ledighed, opret booking og nætter, log ændringen, læg bekræftelser i køen) → `201` → workeren sender e-mail og evt. SMS.
 
-**Flow efter lukketid:** SMS eller e-mail ind → webhook (tjek signatur, gem beskeden med unik nøgle) → `200` → worker finder hotelviden og evt. booking → AI-svar, afklarende spørgsmål eller overdragelse → svar i samme kanal → logges i `ai_actions`.
+**Flow for SMS og e-mail fra gæsten** (i og uden for åbningstid): SMS eller e-mail ind → webhook (tjek signatur, gem beskeden med unik nøgle) → `200` → worker finder hotelviden og evt. booking ud fra afsenderens bekræftede kontaktoplysning → AI-svar, afklarende spørgsmål, forslag til ændring eller overdragelse → svar i samme kanal → logges i `ai_actions`. En overdragelse vises i personalets indbakke. Uden for åbningstid får personalet også en e-mail (F6).
+
+**Flow ved ændring via samtale (F16):** AI foreslår en ændring som JSON → serveren tjekker, at bookingen hører til afsenderen, og validerer ændringen → ventende ændring gemmes med hash af et token → link sendes til den bekræftede kontaktoplysning → gæsten åbner linket og ser ændringen → knappen Bekræft sender `POST` → én transaktion (valider igen, opdater bookingen, log i `booking_changes`, markér tokenet som brugt, læg bekræftelser i køen) → workeren sender bekræftelsen (F12). Detaljerne står under "Identitet og ændringer i SMS- og e-mail-samtaler".
 
 ### Load balancing
 - Nginx og to instanser af Node-appen kører på samme app-Droplet. PM2 starter `server.js` to gange med hver sin port (3000 og 3001)
@@ -136,9 +140,10 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
 | Host | Side | Indhold |
 |---|---|---|
 | `<domæne>` | Forside | Hotellet, værelsestyper og praktisk information |
-| `<domæne>` | Book | Datoer, værelsestype, gæster, ankomsttid, hund og bemærkning → demo-betaling → bekræftelse |
+| `<domæne>` | Book | Datoer, værelsestype, gæster, ankomsttid, hund og bemærkning → demo-betaling → bekræftelse → evt. betroede telefonnumre og e-mailadresser med engangskode (F17) |
 | `<domæne>` | Opret profil, Log ind, Bekræft kode | Login-flowet |
 | `<domæne>` | Mine bookinger, Min profil | Se, ændre og afbestille. Kontaktoplysninger og SMS-valg |
+| `<domæne>` | Bekræft ændring | Åbnes fra linket i en SMS eller e-mail. Viser ændringen og knappen Bekræft, derefter "Ændringen er foretaget: …" (F16) |
 | `admin.<domæne>` | Log ind | Password og evt. engangskode (F14) |
 | `admin.<domæne>` | Indbakke, Samtale | Åbne samtaler, overtag og svar |
 | `admin.<domæne>` | Statistik, AI-log, Hotelviden | F13 og F7 |
@@ -159,6 +164,10 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
 | GET | `/api/bookings/:id` | Én af egne bookinger | Gæst, ejer |
 | PATCH | `/api/bookings/:id` | Ændr egen booking | Gæst, ejer |
 | DELETE | `/api/bookings/:id` | Afbestil egen booking (status sættes til afbestilt) | Gæst, ejer |
+| POST | `/api/bookings/:id/trusted-contacts` | Tilføj betroet telefonnummer eller e-mailadresse, og send engangskode til den (F17) | Gæst, ejer |
+| POST | `/api/bookings/:id/trusted-contacts/:contact_id/verify` | Bekræft den betroede kontaktoplysning med engangskoden (F17) | Gæst, ejer |
+| POST | `/api/booking-changes/preview` | Vis den ventende ændring, som tokenet i body hører til (F16) | Nej (token) |
+| POST | `/api/booking-changes/confirm` | Udfør den ventende ændring, som tokenet i body hører til (F16) | Nej (token) |
 | POST | `/webhooks/twilio/sms` | Indgående SMS | Twilio-signatur |
 | POST | `/webhooks/twilio/status` | Leveringsstatus for udgående SMS | Twilio-signatur |
 | POST | `/webhooks/mailgun/inbound` | Indgående e-mail | Mailgun-signatur |
@@ -170,7 +179,7 @@ Mailgun (e-mail ind) ─ HTTPS ─>               ─┘                        
 | POST | `/api/admin/conversations/:id/takeover` | Overtag samtalen fra AI | Personale |
 | POST | `/api/admin/conversations/:id/reply` | Svar gæsten i samme kanal | Personale |
 | GET | `/api/admin/stats` | Statistik for en periode | Personale |
-| GET | `/api/admin/ai-log` | AI-handlinger uden for åbningstid | Personale |
+| GET | `/api/admin/ai-log` | AI-handlinger | Personale |
 | GET, PUT | `/api/admin/knowledge` | Læs og ret hotelviden | Personale |
 
 Statuskoder: `400` ugyldigt input, `401` ikke logget ind, `403` forkert rolle eller host, `404` findes ikke eller tilhører en anden, `409` konflikt (værelset er optaget, eller idempotensnøglen er brugt), `429` for mange forsøg.
@@ -187,11 +196,13 @@ Statuskoder: `400` ugyldigt input, `401` ikke logget ind, `403` forkert rolle el
 | `rooms` | id, room_type_id, number | |
 | `bookings` | id, user_id, room_id, check_in, check_out, guests, arrival_time, dog, note, total_price, status, idempotency_key, created_at, updated_at | (user_id, idempotency_key) er unik |
 | `booking_nights` | booking_id, room_id, night | (room_id, night) er unik. Forhindrer dobbeltbooking |
+| `trusted_contacts` | id, booking_id, channel (sms/email), contact, verified_at, created_at | (booking_id, channel, contact) er unik. Kun bekræftede kontaktoplysninger bruges til at genkende afsenderen (F17) |
+| `pending_changes` | id, booking_id, conversation_id, token_hash, changes (arrival_time, dog, note), expires_at, used_at, created_at | token_hash er unik. Kun hash af tokenet gemmes (F16) |
 | `booking_changes` | id, booking_id, change_type (created/changed/cancelled), old_values, new_values, created_at | Grundlag for statistik |
 | `notifications` | id, booking_id eller conversation_id, channel, recipient, template, status (queued/sent/delivered/failed), provider_id, attempts, created_at, sent_at | Fungerer som kø for workeren |
 | `conversations` | id, user_id (kan være tom), channel, contact, status (ai/waiting/human/closed), summary, created_at, updated_at | |
 | `messages` | id, conversation_id, direction, sender (guest/ai/staff), text, external_id, delivery_status, created_at | (channel, external_id) er unik: idempotens på MessageSid |
-| `ai_actions` | id, conversation_id, message_id, knowledge_ids, outcome (answered/clarify/handover), ai_ms, total_ms, correlation_id, created_at | Grundlag for AI-log og svartider |
+| `ai_actions` | id, conversation_id, message_id, knowledge_ids, outcome (answered/clarify/handover/propose_change), ai_ms, total_ms, correlation_id, created_at | Grundlag for AI-log og svartider |
 | `hotel_knowledge` | id, topic, text, updated_at | |
 | `webhook_nonces` | token, received_at | token er unik. Afviser genafspillede Mailgun-webhooks |
 
@@ -234,11 +245,27 @@ Login bygges af gruppen selv med teknikkerne fra Øvelsestime 3, 10 og 11 og 11.
 **Engangskoder (OTP)**
 - 6 cifre fra `crypto.randomInt(0, 1000000)`, foranstillede nuller beholdes
 - Kun HMAC-SHA256 af koden gemmes, med nøglen `OTP_SECRET` fra `.env`. Der er kun 1 million mulige koder, så en almindelig hash kan prøves igennem, hvis databasen lækker. Med en hemmelig nøgle kan den ikke
-- Felter: formål (`verify_email`, `verify_phone`, `staff_login`, `booking_access`, `reset_password`), kanal, udløb efter 10 minutter, forsøgstæller og `used_at`
+- Felter: formål (`verify_email`, `verify_phone`, `verify_trusted_contact`, `staff_login`, `reset_password`), kanal, udløb efter 10 minutter, forsøgstæller og `used_at`
 - En kode kan kun bruges én gang (nonce, 11. Lektion). Når en ny kode udstedes, ugyldiggøres ældre koder til samme bruger og formål
 - Sammenligning med `crypto.timingSafeEqual`. Efter 5 forkerte forsøg er koden ugyldig
 - Koden sendes gennem notifikationskøen som SMS eller e-mail. Koden logges aldrig
-- I en SMS- eller e-mail-samtale (F3) sendes koden til den bekræftede kontaktoplysning på profilen, ikke blot tilbage til afsenderen. Et afsendernummer eller en afsenderadresse kan forfalskes. Koden beviser, at gæsten har adgang til den rigtige telefon eller indbakke
+- En betroet kontaktoplysning (F17) bekræftes med en kode, der sendes til selve den betroede kontaktoplysning. Det beviser, at den, der tilføjer den, har adgang til telefonen eller indbakken
+- I SMS- og e-mail-samtaler bruges ikke engangskoder. Se "Identitet og ændringer i SMS- og e-mail-samtaler"
+
+**Identitet og ændringer i SMS- og e-mail-samtaler (F3, F16, F17)**
+- Afsenderen slås op blandt bekræftede kontaktoplysninger: gæstens telefonnummer og e-mailadresse på profilen (`phone_verified_at` og `email_verified_at` er sat) og bekræftede rækker i `trusted_contacts`
+- Et afsendernummer eller en afsenderadresse kan forfalskes. Det er alligevel sikkert at svare med bookingoplysninger, fordi svaret kun sendes til den bekræftede kontaktoplysning. En angriber, der forfalsker afsenderen, ser derfor aldrig svaret
+- Serveren bestemmer modtageren af svaret, aldrig AI'en eller teksten i gæstens besked. E-mail besvares aldrig til `Reply-To`
+- Findes afsenderen ikke blandt de bekræftede kontaktoplysninger, svarer AI kun ud fra hotelviden og udleverer ingen bookingoplysninger
+- En ændring kan derimod udføres uden at se svaret. Derfor kræver ændringer et bekræftelseslink, som kun sendes til den bekræftede kontaktoplysning
+- AI ændrer aldrig selv databasen. Den foreslår en ændring som JSON med `booking_id` og nye værdier for `arrival_time`, `dog` og `note`. Andre felter afvises. Serveren tjekker, at bookingen hører til afsenderen, og validerer ændringen med de samme regler som `PATCH /api/bookings/:id`, fx at værelsestypen tillader hund
+- Tokenet i linket er 128 tilfældige bit fra `crypto.randomBytes(16)`. Kun en SHA-256-hash af tokenet gemmes i `pending_changes`. Tokenet er så tilfældigt, at det ikke kan prøves igennem, så en hemmelig nøgle som ved engangskoderne er ikke nødvendig
+- Tokenet hører til én ændring på én booking, kan kun bruges én gang (nonce) og udløber efter 15 minutter
+- Linket har formen `<domæne>/confirm-change.html#<token>`. Tokenet står efter `#`, så browseren sender det aldrig til serveren, når siden hentes. Det havner derfor ikke i Nginx' log eller i `Referer`. Sidens script sender tokenet i body til `POST /api/booking-changes/preview` og viser ændringen
+- Ændringen udføres først, når gæsten trykker Bekræft, som sender `POST /api/booking-changes/confirm`. At åbne linket (GET) ændrer aldrig noget. SMS-apps og e-mail-scannere åbner nemlig links automatisk for at vise et preview
+- Ved bekræftelse valideres ændringen igen, og den udføres i én transaktion med log i `booking_changes`. Gæsten får en bekræftelse (F12), så den rigtige gæst opdager det, hvis en anden har ændret noget
+- Linket peger altid på vores eget domæne over HTTPS. Gæster vænnes alligevel til at trykke på links i SMS'er, og den vane udnyttes ved phishing
+- En stjålet eller ulåst telefon giver adgang til samtalen. Den risiko accepteres, fordi en engangskode til samme telefon heller ikke beskytter mod det
 
 **Rate limiting** (Øvelsestime 7)
 | Endpoint | Grænse (udgangspunkt) |
@@ -293,7 +320,7 @@ Validering i browseren er kun for brugervenlighedens skyld. Alle regler håndhæ
 - Webhooks: Twilios signatur (`X-Twilio-Signature`) og Mailguns signatur (HMAC af timestamp og token) tjekkes. Signaturen beregnes ud fra den offentlige URL, ikke den interne bag Nginx. Mailgun-webhooks med et gammelt timestamp eller et token, der allerede står i `webhook_nonces`, afvises (genafspilning)
 - Hemmeligheder ligger kun i `.env` på serveren. API-nøgler sendes aldrig til browseren
 - Følsomme felter (fx dørkoder) krypteres med AES-256-GCM med en nøgle fra `.env` (Bør)
-- AI'en får kun hotelviden og data om den gæst, der har bekræftet sin identitet. Svaret fra AI'en kan ikke selv udløse handlinger som ændring af bookinger
+- AI'en får kun hotelviden og bookingdata for en afsender, der er genkendt som en bekræftet kontaktoplysning. AI'en kan kun foreslå ændringer af ankomsttid, hund og bemærkning. Serveren validerer forslaget, og ændringen udføres først, når gæsten har bekræftet den via linket (F16)
 
 ### Miljøvariabler (kun navne)
 `NODE_ENV`, `PORT`, `INSTANCE_NAME`, `PUBLIC_URL`, `ADMIN_URL`, `JWT_SECRET`, `OTP_SECRET`, `DATA_ENCRYPTION_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `MAILGUN_SMTP_HOST`, `MAILGUN_SMTP_PORT`, `MAILGUN_SMTP_USER`, `MAILGUN_SMTP_PASSWORD`, `MAILGUN_WEBHOOK_SIGNING_KEY`, `MAIL_FROM`, `STAFF_NOTIFY_EMAIL`, `DATABASE_URL`, `AI_API_KEY`.
@@ -306,7 +333,7 @@ Hvert læringsmål skal kunne vises i appen og undersøges med en test eller må
 | a | Internettets opbygning, 5-lagsmodellen, HTTP og TCP/IP | DNS-records for domæne, admin og mail. HTTP-API og webhooks. SMTP til Mailgun. TLS foran det hele | `dig` på records. Wireshark af TCP- og TLS-handshake. ping og traceroute til Dropletten |
 | b | Udvikling af netværksapplikationer, asynkron programmering og effektivitet | Kø og worker. Asynkron bcrypt. Web caching. Rate limiting. Load balancing på to instanser af appen | Loadtest med og uden kø og cache og med én og to instanser. Failover, når én instans stoppes. Svartid pr. led. Svartid ved forskellig bcrypt-cost |
 | c | Kryptografi: symmetrisk, asymmetrisk og hashing | bcrypt, HMAC af engangskoder, signeret JWT, AES af følsomme felter, TLS-certifikat | Ændret JWT afvises. Samme password giver forskellige hashes. Certifikatet i browseren og Wireshark |
-| d | Sikkerhed ved design: angreb, arkitektur, kryptering og nøgleudveksling | Cookie-flag, sessioner der kan tilbagekaldes, admin-subdomæne, validering på serveren, webhook-signaturer, firewall | Burp Suite: ændret cookie, genbrug efter logout, anden gæsts booking, pris sendt fra klienten, for mange loginforsøg |
+| d | Sikkerhed ved design: angreb, arkitektur, kryptering og nøgleudveksling | Cookie-flag, sessioner der kan tilbagekaldes, admin-subdomæne, validering på serveren, webhook-signaturer, firewall, bekræftelseslinks til ændringer | Burp Suite: ændret cookie, genbrug efter logout, anden gæsts booking, pris sendt fra klienten, for mange loginforsøg, genbrugt eller udløbet bekræftelseslink |
 
 Mål e (implementering) dækkes af selve appen. Mål f gælder rapporten.
 
@@ -315,3 +342,7 @@ Mål e (implementering) dækkes af selve appen. Mål f gælder rapporten.
 - Hvad betyder "SMS virker ikke": at Twilio-nummeret ikke kan bruges (afgøres af testen), eller at en enkelt SMS fejler, så svaret sendes som e-mail i stedet?
 - Kan Dropletten sende e-mail gennem Mailgun på port 2525? Skal testes
 - Kan gruppens Twilio-nummer modtage SMS fra danske mobiler? Skal testes
+- Hvor står receptionens åbningstid, så systemet kan afgøre, om der er åbent? Hotelviden i `seed.sql` siger kl. 7-22
+- Hvilken booking gælder det, når afsenderen hører til flere bookinger?
+- Kan gæsten tilføje eller fjerne betroede kontaktoplysninger efter bookingen (F17)?
+- Prioritet for F16 og F17: Skal, Bør eller Kan?
