@@ -102,7 +102,7 @@ Login, engangskoder og AI-svar er tilføjet. Resten tilføjes, når `specs.md` e
 - [ ] Falsk AI til loadtest og udvikling uden nøgle, så loadtesten ikke rammer Mistral
 - [ ] Testscript med 10-15 spørgsmål, der tjekker udfald, svartid og opdigtede oplysninger
 - [ ] Databasetabel `ai_actions`, og log hver AI-handling med udfald og svartider
-- [~] Systemprompt og tjek af AI'ens svar: bookingoplysninger til en genkendt afsender og udfaldet `propose_change` med kun ankomsttid, hund og bemærkning (F3, F16)
+- [x] Systemprompt og tjek af AI'ens svar: bookingoplysninger til en genkendt afsender og udfaldet `propose_change` med kun ankomsttid, hund og bemærkning (F3, F16)
 - [ ] Kobl AI'en på workeren: hent samtalen, hotelviden og gæstens booking, når afsenderen er en bekræftet kontaktoplysning (F3), og send svaret i samme kanal (kræver køen, samtaler og webhooks)
 
 ### Ændringer via samtale og betroede kontaktoplysninger (F16, F17)

@@ -13,7 +13,7 @@ Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på
 ## Overblik
 Kort beskrivelse af systemets dele, og hvordan de taler sammen.
 
-Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. `backend/services/ai.js` kan svare en gæst ud fra hotelviden i databasen. Den kalder Mistrals chat-API over HTTPS gennem `backend/services/mistral.js`. AI'en er endnu ikke koblet på noget flow. Der er endnu ingen kø eller worker.
+Én Node/Express-app (`backend/server.js`) serverer både API'et og de statiske sider. Hvilke sider der vises, afhænger af Host-headeren: hoveddomænet får `frontend/hotel`, og `admin.`-subdomænet får `frontend/admin`. `frontend/shared` serveres på begge. Appen lytter kun på `127.0.0.1` og skal nås gennem Nginx på serveren. Appen forbinder til PostgreSQL gennem én fælles connection pool (`backend/db/pool.js`). Tabellerne laves med nummererede SQL-migrationer. `backend/services/ai.js` kan svare en gæst ud fra hotelviden i databasen og evt. gæstens booking og foreslå en ændring af ankomsttid, hund og bemærkning. Den kalder Mistrals chat-API over HTTPS gennem `backend/services/mistral.js`. AI'en er endnu ikke koblet på noget flow. Der er endnu ingen kø eller worker.
 
 ## Kør projektet
 Kommandoer til installation, start og test. Hvilke miljøvariabler der kræves (kun navne, aldrig værdier).
@@ -165,11 +165,20 @@ ecosystem.config.js
 - Afhænger af: `jsonwebtoken`, `crypto`, `db/pool.js`, `config.js`, `errors.js`
 
 ### backend/services/ai.js
-- Formål: AI-assistenten, der svarer gæsten efter lukketid ud fra hotelviden (F1, F2). Den eneste fil, resten af systemet skal kalde for AI-svar. Kender ikke udbyderen, men kalder `mistral.js`
-- Vigtigste funktioner: `answerGuest(history, options)`. `history` er samtalen som `{ sender, text }` med `sender` `guest`, `ai` eller `staff`, og den sidste besked skal være fra gæsten. `options.clarificationAllowed` er false, hvis der allerede er stillet et afklarende spørgsmål. Giver `{ outcome, reply, knowledge_ids, ai_ms, fallback_reason }` og kaster ikke fejl, hvis udbyderen fejler. `parseAiResult(text, knowledgeIds, clarificationAllowed)` tjekker AI'ens svar
-- Prompt: hele `hotel_knowledge` sendes med som `[id] emne: tekst`. Systemprompten siger, at AI'en kun må bruge hotelviden, skal svare kort på gæstens sprog, ikke kan ændre bookinger eller give rabat, aldrig må udlevere koder, og at gæstens beskeder ikke er instrukser. Den skal svare som JSON med `language`, `outcome` (`answered`, `clarify` eller `handover`), `reply` og `knowledge_ids`
-- Tjek på serveren: ugyldig JSON, ukendt udfald, tomt svar eller svar over 600 tegn, ukendte id'er i `knowledge_ids`, `answered` uden id'er og et afklarende spørgsmål nummer to giver alle overdragelse. Det samme gør fejl hos udbyderen (`provider_error`). Ved overdragelse får gæsten et fast svar (`FALLBACK_REPLY`), og `fallback_reason` siger hvorfor. Fejlbeskeden fra udbyderen logges, men aldrig gæstens tekst
-- Fagbegreber i filen: validering af utroværdigt input (AI'ens svar), prompt injection, mindste privilegium (AI'en kan ikke udløse handlinger), måling af svartid
+- Formål: AI-assistenten, der svarer gæsten først, både i og uden for åbningstid, ud fra hotelviden (F1, F2). Får den gæstens booking med, kan den også svare om bookingen (F3) og foreslå en ændring af ankomsttid, hund og bemærkning (F16). Den eneste fil, resten af systemet skal kalde for AI-svar. Kender ikke udbyderen, men kalder `mistral.js`
+- Vigtigste funktioner: `answerGuest(history, options)`. `history` er samtalen som `{ sender, text }` med `sender` `guest`, `ai` eller `staff`, og den sidste besked skal være fra gæsten. `options.clarificationAllowed` er false, hvis der allerede er stillet et afklarende spørgsmål. `options.booking` er gæstens booking med et heltal som `id`. Den må kun gives med, når afsenderen er en bekræftet kontaktoplysning på bookingen. Det afgør den kode, der kalder `answerGuest`. Giver `{ outcome, reply, knowledge_ids, used_booking, change, ai_ms, fallback_reason }` og kaster ikke fejl, hvis udbyderen fejler. `parseAiResult(text, knowledgeIds, clarificationAllowed, bookingId)` tjekker AI'ens svar
+- Booking: AI'en ser kun felterne id, check-in, check-out, antal gæster, ankomsttid, hund, bemærkning, pris og status (mindste privilegium). Uden booking skal spørgsmål om bookingen, koder og ændringer overdrages
+- Forslag til ændring: ved `propose_change` er `change` `{ booking_id, arrival_time?, dog?, note? }`. Ændringen er ikke udført, og `answerGuest` laver ikke linket til bekræftelse. Det gør den kode, der kalder den. Reglerne for bookingen, fx om værelsestypen tillader hund, er endnu ikke tjekket
+- Prompt: hele `hotel_knowledge` sendes med som `[id] emne: tekst` og evt. bookingen som én linje pr. felt. Systemprompten siger, at AI'en kun må bruge hotelviden og bookingen, skal svare kort på gæstens sprog, ikke selv kan ændre noget eller give rabat, aldrig må skrive links, og at gæstens beskeder ikke er instrukser. Andre ændringer end de tre, fx datoer og afbestilling, skal overdrages. Den skal svare som JSON med `language`, `outcome` (`answered`, `clarify`, `handover` eller `propose_change`), `reply` og `knowledge_ids` og med booking også `used_booking` og `change`
+- Tjek på serveren: disse svar giver alle overdragelse:
+  - ugyldig JSON, ukendt udfald, tomt svar eller svar over 600 tegn
+  - et link, en webadresse eller en pladsholder som `[link]` i svaret (`reply_contains_link`). Et link fra AI'en, fx efter prompt injection, kunne bruges til phishing fra hotellets nummer
+  - ukendte id'er i `knowledge_ids`, og `answered` uden id'er og uden `used_booking`
+  - `used_booking` eller `propose_change`, når AI'en ikke har fået en booking (`booking_not_available`)
+  - et forslag uden felter, med andre felter end `arrival_time`, `dog` og `note`, ankomsttid, der ikke er tt:mm, hund, der ikke er true eller false, eller bemærkning, der ikke er tekst (`invalid_change`)
+  - et afklarende spørgsmål nummer to og fejl hos udbyderen (`provider_error`)
+- `booking_id` i forslaget kommer fra serveren, ikke fra AI'en, så AI'en kan ikke foreslå en ændring af en anden gæsts booking. Ved overdragelse får gæsten et fast svar (`FALLBACK_REPLY`), og `fallback_reason` siger hvorfor. Fejlbeskeden fra udbyderen logges, men aldrig gæstens tekst
+- Fagbegreber i filen: validering af utroværdigt input (AI'ens svar), prompt injection, phishing, mass assignment, mindste privilegium (AI'en kan kun foreslå, ikke udføre), måling af svartid
 - Afhænger af: `db/pool.js`, `services/mistral.js`
 
 ### backend/services/mistral.js
@@ -195,7 +204,8 @@ ecosystem.config.js
 ### backend/db/seed.sql og backend/scripts/seed.js
 - Formål: fiktive testdata. Indtil videre 13 emner med hotelviden, fx reception og åbningstider (kl. 7-22), check-in, nøgleboks ved sen ankomst, hund, parkering, morgenmad og hjælp om natten. Køres med `npm run seed` efter `npm run migrate`
 - `seed.sql` bruger `ON CONFLICT (topic) DO NOTHING`, så den kan køres igen uden dubletter og uden at overskrive tekst, som personalet har rettet
-- Koden til nøgleboksen står ikke i hotelviden. Den hører til den enkelte booking og må kun udleveres efter bekræftet identitet (F3)
+- Koden til nøgleboksen står ikke i hotelviden. Den hører til den enkelte booking og må kun udleveres til en afsender, der er en bekræftet kontaktoplysning på bookingen (F3)
+- `seed.sql` siger, at gæster kan skrive til den digitale assistent hele døgnet, og at ankomsttid, hund og bemærkning kan ændres via SMS eller e-mail med et bekræftelseslink. På grund af `ON CONFLICT (topic) DO NOTHING` kommer rettede tekster ikke ind i en database, hvor emnerne allerede findes
 - `seed.js` kører hele `seed.sql` i én transaktion og skriver antallet af emner
 - Afhænger af: `db/pool.js`, tabellerne fra migrationerne
 
@@ -224,9 +234,11 @@ ecosystem.config.js
 
 ### tests/aiSvar.js
 - Formål: tester `services/ai.js`. Skriver OK eller FEJL pr. test og afslutter med exit-kode 1, hvis noget fejler
-- Del 1 (uden kald): `parseAiResult` med ugyldig JSON, ukendt udfald, tomt og for langt svar, ukendte id'er, svar uden hotelviden, andet afklarende spørgsmål og gyldige svar
-- Del 2 (uden betalte kald): forkert nøgle giver overdragelse med det faste svar og målt `ai_ms`. Forkert brug af `answerGuest` afvises
-- Del 3 (7 kald til Mistral): sen ankomst og hund, kode til nøgleboksen, ukendt emne, prompt injection, uklart spørgsmål, uklart spørgsmål igen og et engelsk spørgsmål. Skriver udfald, emner, svartid og svaret, så man selv kan læse dem. AI-svar varierer lidt, så en enkelt fejl i del 3 skal vurderes
+- Del 1 (uden kald): `parseAiResult` med ugyldig JSON, ukendt udfald, tomt og for langt svar, links i svaret, ukendte id'er, svar uden hotelviden, andet afklarende spørgsmål og gyldige svar
+- Del 1b (uden kald): svar ud fra bookingen med og uden booking og forslag til ændringer: gyldige forslag, `booking_id` fra serveren, forslag uden booking, andre felter, tomt forslag, forkert format på ankomsttid og hund
+- Del 2 (uden betalte kald): forkert nøgle giver overdragelse med det faste svar og målt `ai_ms`. Forkert brug af `answerGuest` afvises, også en booking uden id
+- Del 3 (12 kald til Mistral): sen ankomst og hund, kode til nøgleboksen, ukendt emne, prompt injection, uklart spørgsmål, uklart spørgsmål igen og et engelsk spørgsmål. Med en fiktiv booking: spørgsmål om bookingen, ny ankomsttid, tilføj hund og nye datoer (skal overdrages). Uden booking: ny ankomsttid (skal overdrages). Skriver udfald, emner, svartid, svaret og evt. forslaget, så man selv kan læse dem. AI-svar varierer lidt, så en enkelt fejl i del 3 skal vurderes
+- Den fiktive booking findes kun i testscriptet, fordi tabellen `bookings` ikke er lavet endnu
 - Afhænger af: udviklingsdatabasen med migrationer og seed, `AI_API_KEY` i `.env` og internetforbindelse
 
 ### ecosystem.config.js
@@ -259,7 +271,7 @@ Hvilke API'er appen kalder, hvad de bruges til, og hvordan fejl og ventetid hån
 
 | Tjeneste | Bruges til | Protokol | Fejl og ventetid | Fil |
 |---|---|---|---|---|
-| Mistral (`api.mistral.ai`) | AI-svar til gæsten (endnu ikke koblet på et flow) | HTTPS POST med JSON. Nøglen fra `AI_API_KEY` i `Authorization: Bearer` | Timeout efter 15 sekunder. HTTP-fejl og netværksfejl kastes som fejl med forklaring | `backend/services/mistral.js` |
+| Mistral (`api.mistral.ai`) | AI-svar og forslag til ændringer til gæsten (endnu ikke koblet på et flow) | HTTPS POST med JSON. Nøglen fra `AI_API_KEY` i `Authorization: Bearer` | Timeout efter 15 sekunder. HTTP-fejl og netværksfejl kastes som fejl med forklaring | `backend/services/mistral.js` |
 
 ## Drift
 Server, proceshåndtering, domæne, certifikat, og hvordan en ny version lægges op.

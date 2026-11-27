@@ -1,9 +1,10 @@
 // Formål: tester AI-assistenten i services/ai.js: tjekket af AI'ens svar på
-// serveren, overdragelse ved fejl og en række rigtige spørgsmål til Mistral.
+// serveren, overdragelse ved fejl og en række rigtige spørgsmål til Mistral,
+// også om gæstens booking (F3) og forslag til ændringer (F16).
 // Kræver den lokale database med migrationer og seed og AI_API_KEY i .env. Kør:
 //   node tests/aiSvar.js
 // Hver test skriver OK eller FEJL. Del 1 og 2 koster ingenting. Del 3 laver
-// 7 rigtige kald til Mistral, som tilsammen koster under en øre.
+// 12 rigtige kald til Mistral, som tilsammen koster omkring en øre.
 // AI-svar varierer lidt fra gang til gang, så en enkelt FEJL i del 3 skal
 // læses: er det AI'en, der svarer forkert, eller testen, der er for streng?
 
@@ -12,6 +13,19 @@ const pool = require('../backend/db/pool');
 const ai = require('../backend/services/ai');
 
 let failures = 0;
+
+// En fiktiv booking til testene. Den findes ikke i databasen. Tabellen bookings
+// er ikke lavet endnu, og ai.js læser kun den booking, den får med.
+const TEST_BOOKING = {
+  id: 42,
+  check_in: '2026-12-10',
+  check_out: '2026-12-12',
+  guests: 2,
+  arrival_time: '23:30',
+  dog: false,
+  note: '',
+  total_price: 2400,
+};
 
 // Skriver resultatet af én test og tæller fejl.
 function check(label, passed) {
@@ -63,12 +77,58 @@ function testParseAiResult(knowledgeIds) {
     ai.parseAiResult('{"outcome": "handover", "reply": "Personalet vender tilbage."}', knowledgeIds, true).fallback_reason === null);
   check('fallback-svaret er det faste svar',
     ai.parseAiResult('ikke json', knowledgeIds, true).reply === ai.FALLBACK_REPLY);
+  check('svar med et link giver overdragelse (phishing)',
+    ai.parseAiResult(`{"outcome": "answered", "reply": "Bekræft her: https://evil.example", "knowledge_ids": [${validId}]}`, knowledgeIds, true).fallback_reason === 'reply_contains_link');
+  check('svar med en webadresse uden https giver overdragelse',
+    ai.parseAiResult(`{"outcome": "answered", "reply": "Se www.evil.example", "knowledge_ids": [${validId}]}`, knowledgeIds, true).fallback_reason === 'reply_contains_link');
+  check('svar med en pladsholder for et link giver overdragelse',
+    ai.parseAiResult(`{"outcome": "answered", "reply": "Bekræft her: [link]", "knowledge_ids": [${validId}]}`, knowledgeIds, true).fallback_reason === 'reply_contains_link');
+}
+
+// Del 1b: tjek af svar om gæstens booking (F3) og forslag til ændringer (F16), uden kald.
+function testParseBookingResult(knowledgeIds) {
+  console.log('Del 1b: tjek af svar om booking og ændringer');
+  const bookingId = TEST_BOOKING.id;
+
+  // Svar, der bygger på bookingen.
+  const fromBooking = ai.parseAiResult('{"outcome": "answered", "reply": "I har check-in 10. december.", "knowledge_ids": [], "used_booking": true}', knowledgeIds, true, bookingId);
+  check('svar ud fra bookingen bruges uden hotelviden (F3)',
+    fromBooking.outcome === 'answered' && fromBooking.used_booking === true && fromBooking.fallback_reason === null);
+  check('svar ud fra en booking, AI\'en ikke har fået, giver overdragelse',
+    ai.parseAiResult('{"outcome": "answered", "reply": "Hej", "knowledge_ids": [], "used_booking": true}', knowledgeIds, true, null).fallback_reason === 'booking_not_available');
+
+  // Gyldigt forslag. booking_id skal komme fra serveren, også når AI'en skriver et andet.
+  const valid = ai.parseAiResult(`{"outcome": "propose_change", "reply": "Du får et link.", "knowledge_ids": [], "booking_id": 999, "change": {"arrival_time": "01:00", "note": "  Sen ankomst  "}}`, knowledgeIds, true, bookingId);
+  check('gyldigt forslag bruges, og booking_id kommer fra serveren',
+    valid.outcome === 'propose_change' && valid.change.booking_id === bookingId && valid.change.arrival_time === '01:00' && valid.change.note === 'Sen ankomst');
+  check('gyldigt forslag om hund',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"dog": false}}', knowledgeIds, true, bookingId).change.dog === false);
+
+  // Ugyldige forslag giver alle overdragelse.
+  check('forslag uden booking giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"dog": true}}', knowledgeIds, true, null).fallback_reason === 'booking_not_available');
+  check('forslag om et andet felt (check_in) giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"check_in": "2026-12-11"}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('forslag om ny pris sammen med et tilladt felt giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"note": "Hej", "total_price": 1}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('tomt forslag giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('forslag uden change giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link."}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('ankomsttid i forkert format giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"arrival_time": "kl. 1 om natten"}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('ankomsttid 24:00 giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"arrival_time": "24:00"}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('hund som tekst giver overdragelse',
+    ai.parseAiResult('{"outcome": "propose_change", "reply": "Du får et link.", "change": {"dog": "ja"}}', knowledgeIds, true, bookingId).fallback_reason === 'invalid_change');
+  check('andre udfald har intet forslag',
+    ai.parseAiResult(`{"outcome": "answered", "reply": "Hej", "knowledge_ids": [${knowledgeIds[0]}], "change": {"dog": true}}`, knowledgeIds, true, bookingId).change === null);
 }
 
 // Kalder answerGuest og giver fejlens besked tilbage, eller null hvis den ikke fejlede.
-async function errorMessageOf(history) {
+async function errorMessageOf(history, options) {
   try {
-    await ai.answerGuest(history);
+    await ai.answerGuest(history, options);
     return null;
   } catch (err) {
     return err.message;
@@ -91,13 +151,18 @@ async function testErrorHandling() {
   check('tom samtale afvises', (await errorMessageOf([])) !== null);
   check('samtale, der ikke slutter med gæsten, afvises',
     (await errorMessageOf([{ sender: 'guest', text: 'Hej' }, { sender: 'ai', text: 'Hej!' }])) !== null);
+  check('booking uden id afvises',
+    (await errorMessageOf([{ sender: 'guest', text: 'Hej' }], { booking: { check_in: '2026-12-10' } })) !== null);
 }
 
 // Stiller ét spørgsmål og skriver svaret, så man selv kan læse det.
 async function ask(label, history, options) {
   const result = await ai.answerGuest(history, options);
-  console.log(`  [${label}] ${result.outcome}, emner ${JSON.stringify(result.knowledge_ids)}, ${result.ai_ms} ms`);
+  console.log(`  [${label}] ${result.outcome}, emner ${JSON.stringify(result.knowledge_ids)}, booking ${result.used_booking}, ${result.ai_ms} ms`);
   console.log(`        "${result.reply}"`);
+  if (result.change) {
+    console.log(`        forslag: ${JSON.stringify(result.change)}`);
+  }
   if (result.fallback_reason) {
     console.log(`        fallback: ${result.fallback_reason}`);
   }
@@ -165,6 +230,44 @@ async function testRealQuestions() {
   ]);
   check('engelsk spørgsmål besvares', english.outcome === 'answered');
   check('svaret er på engelsk og nævner tidspunktet', /breakfast/i.test(english.reply) && /7[.:]30/.test(english.reply));
+
+  // F3 og F16: afsenderen er genkendt, så AI'en får gæstens booking med.
+  const withBooking = { booking: TEST_BOOKING };
+
+  const ownBooking = await ask('egen booking', [
+    { sender: 'guest', text: 'Hvilken dato har vi check-in, og hvor mange gæster står der på bookingen?' },
+  ], withBooking);
+  check('spørgsmål om egen booking besvares ud fra bookingen (F3)',
+    ownBooking.outcome === 'answered' && ownBooking.used_booking === true);
+  check('svaret nævner datoen og antallet af gæster',
+    /10/.test(ownBooking.reply) && /\b2\b|to /i.test(ownBooking.reply));
+
+  const arrival = await ask('ændr ankomsttid', [
+    { sender: 'guest', text: 'Vores fly er forsinket. Kan I ændre vores ankomsttid til kl. 01.00?' },
+  ], withBooking);
+  check('ønske om ny ankomsttid giver et forslag (F16)', arrival.outcome === 'propose_change');
+  check('forslaget er ankomsttid 01:00 på den rigtige booking',
+    arrival.change !== null && arrival.change.arrival_time === '01:00' && arrival.change.booking_id === TEST_BOOKING.id);
+  check('svaret siger ikke, at ændringen er foretaget',
+    !/(er|har) (nu )?(blevet )?ændret|har ændret/i.test(arrival.reply));
+  check('svaret nævner linket, men skriver det ikke selv',
+    /link/i.test(arrival.reply) && arrival.fallback_reason === null);
+
+  const addDog = await ask('tilføj hund', [
+    { sender: 'guest', text: 'Vi tager alligevel vores hund med. Kan I skrive det på bookingen?' },
+  ], withBooking);
+  check('ønske om hund giver et forslag med dog: true',
+    addDog.outcome === 'propose_change' && addDog.change !== null && addDog.change.dog === true);
+
+  const newDates = await ask('ændr datoer', [
+    { sender: 'guest', text: 'Kan vi flytte bookingen til 15.-17. december?' },
+  ], withBooking);
+  check('ændring af datoer overdrages', newDates.outcome === 'handover');
+
+  const noBooking = await ask('ændring uden booking', [
+    { sender: 'guest', text: 'Kan I ændre min ankomsttid til kl. 01.00?' },
+  ]);
+  check('ændring fra en ukendt afsender overdrages', noBooking.outcome === 'handover' && noBooking.change === null);
 }
 
 // Kører alle tests og afslutter med exit-kode 1, hvis noget fejlede.
@@ -176,6 +279,7 @@ async function main() {
       throw new Error('hotel_knowledge er tom. Kør npm run seed');
     }
     testParseAiResult(knowledgeIds);
+    testParseBookingResult(knowledgeIds);
     await testErrorHandling();
     await testRealQuestions();
   } catch (err) {
