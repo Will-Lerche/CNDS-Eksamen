@@ -2,7 +2,6 @@
 
 Dokumentation af, hvordan den byggede kode virker. Skrevet af AI-værktøjer på gruppens anmodning og kontrolleret af gruppen.
 
-> Tekst herfra må ikke kopieres ind i den skriftlige rapport. Rapporten skriver gruppen selv.
 > Afsnittene udfyldes, når der er kode.
 
 ## Sådan bruges filen
