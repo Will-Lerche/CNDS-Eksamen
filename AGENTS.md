@@ -148,8 +148,5 @@ Branch-navne: `kategori/kort-beskrivelse` med små bogstaver og bindestreger og 
 ## Forklar dit arbejde
 Afslut hver opgave med en kort forklaring på dansk: hvad du ændrede, i hvilke filer, og hvordan det testes. Læg vægten på arkitektur, kommunikation og sikkerhed: hvilke requests og protokoller der er i spil, og hvilke angreb ændringen beskytter mod. Detaljer om den enkelte kodelinje er mindre vigtige.
 
-## Rapporten
-Skriv aldrig tekst til den skriftlige rapport, og formulér ikke dens faglige indhold. Fagets regler forbyder det. Du må gerne forklare begreber og svare på spørgsmål som sparring.
-
 ## Værktøjsfiler
 `CLAUDE.md` og `GEMINI.md` importerer kun denne fil. Skriv regler her, ikke i dem.
